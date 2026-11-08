@@ -82,7 +82,6 @@
     <Copy SourceFiles="mod.yaml;mod_info.yaml" DestinationFolder="$(LocalModDir)" />
     <Copy SourceFiles="@(AnimAsset)" DestinationFiles="@(AnimAsset->'$(LocalModDir)/anim/assets/%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="README.md" DestinationFolder="$(LocalModDir)" Condition="Exists('README.md')" />
-    <Copy SourceFiles="README.en.md" DestinationFolder="$(LocalModDir)" Condition="Exists('README.en.md')" />
     <Copy SourceFiles="@(TranslationFiles)" DestinationFolder="$(LocalModDir)/translations" Condition="'@(TranslationFiles)' != ''" />
   </Target>
 
