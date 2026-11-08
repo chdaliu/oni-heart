@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace ONIHeart
 {
-    /// <summary>2x2 科学仪器：元素终端机。每种终端只控制一种处理操作。</summary>
+    /// <summary>2x2 science building: element terminal. Each terminal controls only one processing operation.</summary>
     public abstract class HeartTerminalConfigBase : IBuildingConfig
     {
         protected abstract string Id { get; }

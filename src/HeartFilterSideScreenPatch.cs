@@ -4,9 +4,9 @@ using UnityEngine;
 namespace ONIHeart
 {
     /// <summary>
-    /// 让原版 FilterSideScreen 接受我们自己的输出接口和手动装瓶器。
-    /// 这些建筑只挂 Filterable，不挂 ElementFilter，避免 ElementFilter
-    /// 作为 ISecondaryOutput 在输出接口上多出一个管道口。
+    /// Make the vanilla FilterSideScreen accept our output interfaces and manual bottler.
+    /// These buildings only have Filterable, not ElementFilter, avoiding an extra pipe port
+    /// caused by ElementFilter implementing ISecondaryOutput.
     /// </summary>
     [HarmonyPatch(typeof(FilterSideScreen), nameof(FilterSideScreen.IsValidForTarget))]
     public static class HeartFilterSideScreenPatch
@@ -34,8 +34,8 @@ namespace ONIHeart
     }
 
     /// <summary>
-    /// 原版 FilterSideScreen 会显示“过滤输出 / 其他全部”两栏。
-    /// 我们的接口和装瓶器只有一个输出，只保留元素选择列表和当前选择。
+    /// The vanilla FilterSideScreen shows two columns: "filtered output" and "everything else".
+    /// Our interfaces and bottler have only one output, so keep only the element selection list and current selection.
     /// </summary>
     [HarmonyPatch(typeof(FilterSideScreen), nameof(FilterSideScreen.SetTarget))]
     public static class HeartFilterSideScreenSetTargetPatch

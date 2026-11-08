@@ -1,14 +1,14 @@
 namespace ONIHeart
 {
     /// <summary>
-    /// 单个电力接口与元素之心内部电力的双向同步。
-    /// 接口上的电池只是与本地电网交换的缓冲；实际能量通过元素之心共享，
-    /// 所以一个接口接入的发电机可以给另一个接口所在的电网供电。
+    /// Bidirectional synchronization between a single power interface and the heart's internal power.
+    /// The battery on the interface is only a buffer for the local grid; actual energy is shared through the heart,
+    /// so a generator connected to one interface can power the grid at another interface.
     ///
-    /// 本地缓冲按本地电网的实际需求确定：
-    /// - 本地没有用电需求时，电池里的电全部送入元素之心（发电机侧）；
-    /// - 本地有用电需求时，电池只保留约两帧需求量，不足部分从元素之心补回。
-    /// 这样多个电力接口不会互相囤电，发电机产生的电会进入共享池。
+    /// The local buffer follows local grid demand:
+    /// - When the local grid has no demand, all battery power is sent to the heart (generator side).
+    /// - When the local grid has demand, the battery keeps only about two frames of demand and pulls the rest from the heart.
+    /// This prevents multiple power interfaces from hoarding power so generator output enters the shared pool.
     /// </summary>
     public sealed class PowerTransfer : KMonoBehaviour, ISim200ms
     {

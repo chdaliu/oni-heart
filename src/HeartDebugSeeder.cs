@@ -6,11 +6,11 @@ using UnityEngine;
 namespace ONIHeart
 {
     /// <summary>
-    /// 调试辅助：元素之心第一次进入模拟时，预装全部气体、液体和固体元素各一份，
-    /// 方便直接测试分解 / 固化 / 液化 / 气化配方，不必先接管道或手动搬运。
+    /// Debug helper: on the heart's first simulation tick, preload one stack of every gas, liquid, and solid element
+    /// so decomposition / solidification / liquefaction / vaporization recipes can be tested without pipes or hauling.
     ///
-    /// 把 Enabled 改成 false 即可关闭。SeedVersion 用于在更新调试内容后，
-    /// 让已有存档的元素之心再补装一次缺少的元素；正常消耗不会自动补满。
+    /// Set Enabled to false to disable. SeedVersion is used after updating debug content
+    /// to top up missing elements in existing saves; normal consumption is never refilled automatically.
     /// </summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class HeartDebugSeeder : KMonoBehaviour, ISim200ms
@@ -18,7 +18,7 @@ namespace ONIHeart
         public const bool Enabled = true;
         public const float MassPerElement = 1000f;
 
-        // 每次需要重新灌注全部元素时加 1。
+        // Increment when all elements should be seeded again.
         public const int SeedVersion = 2;
 
         [Serialize]
@@ -92,7 +92,7 @@ namespace ONIHeart
                     continue;
                 }
 
-                // 固体元素需要能生成对应物品，否则 AddElement 只会报错。
+                // Solid elements need a spawnable item; otherwise AddElement will only log errors.
                 if (element.IsSolid && Assets.TryGetPrefab(element.tag) == null)
                 {
                     continue;
@@ -179,7 +179,7 @@ namespace ONIHeart
                     KPrefabID prefabId = storage.items[i] != null
                         ? storage.items[i].GetComponent<KPrefabID>()
                         : null;
-                    // 只勾选固体物品；气体/液体仍通过接口进出，不应产生搬运任务。
+                    // Select only solid items; gases/liquids still enter/leave through interfaces and should not create hauling tasks.
                     if (prefabId != null && prefabId.HasTag(GameTags.Solid))
                     {
                         tags.Add(prefabId.PrefabTag);
@@ -187,7 +187,7 @@ namespace ONIHeart
                 }
             }
 
-            // 同时勾选当前已发现的全部同类别资源，让复制人能把所有品类搬进来。
+            // Also select all discovered resources in the same categories so duplicants can deliver every type.
             if (storage.storageFilters != null)
             {
                 for (int i = 0; i < storage.storageFilters.Count; i++)

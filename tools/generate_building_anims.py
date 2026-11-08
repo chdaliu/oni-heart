@@ -77,7 +77,7 @@ def kanim(folder: str, name: str, image: Image.Image,
         buf += struct.pack("<f", 0.0)
 
     if ui_image is None:
-        # 兼容原有单符号资源：ui 符号同时用于世界渲染和建造菜单图标。
+        # Compatibility with single-symbol assets: the ui symbol is used for both world rendering and the build-menu icon.
         image.save(out / f"{name}_0.png")
         world_uv = (0.0, 0.0, 1.0, 1.0)
 
@@ -108,8 +108,8 @@ def kanim(folder: str, name: str, image: Image.Image,
         (out / f"{name}_anim.bytes").write_bytes(anim)
         return
 
-    # 双符号资源：世界模型使用 object 符号，建造菜单图标使用独立的 ui 符号，
-    # 两者共用同一张图集，因此可以拥有不同的显示尺寸。
+    # Two-symbol assets: the world model uses the object symbol and the build-menu icon uses a separate ui symbol;
+    # both share the same atlas so they can have different display sizes.
     world_hash = sdbm_lower("object")
     w, h = image.size
     uw, uh = ui_image.size
@@ -225,7 +225,7 @@ def main():
             folder,
             name,
             world,
-            (100.0, -200.0, 400.0, 400.0),
+            (0.0, -200.0, 400.0, 400.0),
             ui_bounds=(0.0, 0.0, 200.0, 200.0),
             ui_image=terminal_icon(world),
         )

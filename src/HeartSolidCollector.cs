@@ -3,9 +3,9 @@ using System.Collections.Generic;
 namespace ONIHeart
 {
     /// <summary>
-    /// 让元素之心像容器箱子一样把固体搬进来：
-    /// 根据 TreeFilterable 的勾选列表创建 StorageFetch 搬运任务。
-    /// 气体/液体不在勾选列表中，因此不会产生搬运任务，仍由元素接口处理。
+    /// Let the heart haul in solids like a storage bin:
+    /// create StorageFetch chores from the TreeFilterable checklist.
+    /// Gases/liquids are not in the checklist, so they create no hauling chores and are handled by element interfaces.
     /// </summary>
     public sealed class HeartSolidCollector : KMonoBehaviour, ISim1000ms
     {
@@ -23,7 +23,7 @@ namespace ONIHeart
                 use_logic_meter: false,
                 Db.Get().ChoreTypes.StorageFetch);
 
-            // 元素之心没有 meter 动画符号，关闭容量表盘以免报错。
+            // The heart has no meter animation symbol; disable the capacity meter to avoid errors.
             filteredStorage.SetHasMeter(false);
             filteredStorage.FilterChanged();
             SanitizeFilters();
@@ -31,8 +31,8 @@ namespace ONIHeart
 
         public void Sim1000ms(float dt)
         {
-            // TreeFilterable.OnSpawn 可能在我们的 OnSpawn 之后才把存档里的
-            // 物品标签合并进过滤列表，所以第一帧再清理一次。
+            // TreeFilterable.OnSpawn may merge saved item tags into the filter list after our OnSpawn,
+            // so sanitize once more on the first frame.
             if (!filtersSanitized)
             {
                 SanitizeFilters();

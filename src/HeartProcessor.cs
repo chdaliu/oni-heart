@@ -14,10 +14,10 @@ namespace ONIHeart
     }
 
     /// <summary>
-    /// 元素之心的配方式处理：
-    /// - 分解：只有水一个配方，使用可拖动速率（kg/s），速率 0 即关闭；
-    /// - 固化 / 液化 / 气化：每个配方对应一种输入元素，设置目标产出数量（kg），
-    ///   数量 0 即关闭；多个配方可以同时工作。
+    /// Element heart recipe processing:
+    /// - Decompose: one water recipe using an adjustable rate (kg/s); rate 0 disables it.
+    /// - Solidify / Liquefy / Vaporize: each recipe has one input element and a target output amount (kg);
+    ///   amount 0 disables it. Multiple recipes can run simultaneously.
     /// </summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class HeartProcessor : KMonoBehaviour, ISim200ms, IGameObjectEffectDescriptor
@@ -25,7 +25,7 @@ namespace ONIHeart
         public const float MAX_DECOMPOSE_RATE = 20f;
         public const float MAX_CONVERSION_AMOUNT = 10000f;
 
-        // 只让常规温度范围内的元素进入配方，过滤掉气态岩、岩浆、熔融金属等极端元素。
+        // Only allow elements within the normal temperature range; exclude extreme elements such as gaseous rock, magma, and molten metal.
         private const float MIN_CONVENTIONAL_TEMPERATURE = 10f;
         private const float MAX_CONVENTIONAL_TEMPERATURE = 1000f;
 
@@ -163,7 +163,7 @@ namespace ONIHeart
             return result;
         }
 
-        /// <summary>UI 用的配方输入：当前库存中符合相态的输入 + 仍有待处理数量的输入。</summary>
+        /// <summary>Recipe inputs for the UI: phase-valid inputs currently in storage plus inputs with pending amounts.</summary>
         public List<Tag> GetRecipeInputs(HeartProcessOperation operationKind)
         {
             NormalizeDictionaries();
@@ -198,8 +198,8 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 面板用：列出该操作所有合法配方，不论元素之心当前是否有库存。
-        /// 这样玩家可以先配置目标数量，再把材料送进元素之心。
+        /// For the panel: list all valid recipes for this operation regardless of current heart inventory.
+        /// This lets players configure target amounts before delivering materials.
         /// </summary>
         public List<Tag> GetAllRecipeInputs(HeartProcessOperation operationKind)
         {
@@ -223,7 +223,7 @@ namespace ONIHeart
             return result;
         }
 
-        /// <summary>元素之心内部当前储存的某种元素质量。</summary>
+        /// <summary>Amount of an element currently stored inside the heart.</summary>
         public float GetStoredMass(Tag tag)
         {
             if (heart == null || heart.Storage == null || !tag.IsValid)
@@ -255,7 +255,7 @@ namespace ONIHeart
             return GetPendingElements(operationKind).Count > 0;
         }
 
-        /// <summary>元素之心当前是否有该操作可用的输入材料。</summary>
+        /// <summary>Whether the heart currently has any usable input for this operation.</summary>
         public bool HasStoredInput(HeartProcessOperation operationKind)
         {
             if (heart == null || heart.Storage == null)
@@ -443,7 +443,7 @@ namespace ONIHeart
             heart.Storage.ConsumeIgnoringDisease(sourceElement.id.CreateTag(), mass);
             heart.Storage.AddElement(target.id, mass, outputTemperature, byte.MaxValue, 0, false, false);
 
-            // 输入升温需要的热量从环境吸走；降温释放的热量交给环境。
+            // Heat required to raise the input is taken from the environment; heat released on cooling is returned to it.
             ExchangeHeat(-heat);
         }
 
@@ -472,7 +472,7 @@ namespace ONIHeart
                     }
                     else if (source.IsGas)
                     {
-                        // 气体先经过液态再固化：气体 → 液体 → 固体。
+                        // Gas first condenses to liquid and then solidifies: gas -> liquid -> solid.
                         Element liquid = source.lowTempTransition;
                         target = liquid != null ? liquid.lowTempTransition : null;
                         if (!HasSpawnableTarget(target, source, Element.State.Solid))
@@ -528,7 +528,7 @@ namespace ONIHeart
                     }
                     else if (source.IsSolid)
                     {
-                        // 固体直接升华；没有直接相变时经过液体再气化。
+                        // Solids sublimate directly; if there is no direct transition, go through liquid before vaporizing.
                         Element liquid = source.highTempTransition;
                         target = liquid != null && liquid.IsGas
                             ? liquid
@@ -578,8 +578,8 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 目标元素必须真实存在且能生成物品。游戏里有些元素（例如某些未使用的固/液态）
-        /// 只有定义没有可生成的物品，这种配方不应该显示，也不应该执行。
+        /// The target element must actually exist and be spawnable. Some elements (e.g. unused solid/liquid types)
+        /// have definitions but no spawnable item; such recipes should not be shown or executed.
         /// </summary>
         private static bool HasSpawnableTarget(Element target, Element source, Element.State requiredState)
         {
@@ -619,8 +619,8 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 把热量交给/取自建筑占地范围内热容量最大的环境格。
-        /// 正数表示向环境放热，负数表示从环境吸热。
+        /// Transfer heat to/from the environment cell with the highest heat capacity within the building footprint.
+        /// Positive values release heat to the environment; negative values absorb heat from it.
         /// </summary>
         private void ExchangeHeat(float joulesToEnvironment)
         {

@@ -1,3 +1,5 @@
+[中文](README.md) | [English](README.en.md)
+
 # 元素之心 (ONI-Heart)
 
 《缺氧》Mod：新增一个 4x4 建筑 **元素之心**，以及气体/液体输入输出接口和双向电力接口。
@@ -213,7 +215,7 @@ tools/generate_building_anims.py 重新生成上述建筑外观并打包 KAnim
 - 气液接口的输出物质选择使用原版 `FilterSideScreen` 单选列表；元素之心切换统一放在属性面板下方的标准按钮区。
 - 每个电力接口是一个双向电池连接；所有电力接口共享元素之心的电力池，不再区分输入/输出建筑。
 - 元素接口的“无视障碍”通过为每种接口分配独立的 `ObjectLayer` 实现：普通建筑不阻挡接口，同种接口共用一层因此不能叠加。
-- 接口的 `ElementFilter` 只用于调出原版过滤侧边栏，因此把它的 `portInfo` 设为 `ConduitType.None`；否则原版在检查副输出端口时会因为空引用而报错并导致无法放置建筑。
+- 接口和装瓶器只挂 `Filterable`，不挂 `ElementFilter`，避免 `ElementFilter` 作为 `ISecondaryOutput` 多出一个管道口；过滤侧栏通过 Harmony patch 适配。
 - 原版 `PlanScreen` 与 Codex 均以建筑 ID 作为唯一键，同一栋建筑无法同时出现在两个建造分类中（会抛出重复键异常并导致无法进入游戏）。
-- 按需求已移除“自动吸收散落物品”；固体可通过元素之心的材料列表搬入，或使用新增的固体提取器手动取出。
-- 若需要完全自定义的下拉菜单，可以在 `HeartPort` 的输出过滤逻辑上扩展。
+- 按需求已移除“自动吸收散落物品”；固体可通过元素之心的材料列表搬入，或使用手动装载器搬入。
+- 若需要完全自定义的下拉菜单，可以在 `HeartFilterSideScreenPatch` 和 `HeartPort` 的输出过滤逻辑上扩展。

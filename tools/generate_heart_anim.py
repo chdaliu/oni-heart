@@ -670,10 +670,10 @@ def build_bytes() -> bytes:
     for i in range(COUNT):
         col, row = i % COLS, i // COLS
         uv = (col / COLS, row / ROWS, (col + 1) / COLS, (row + 1) / ROWS)
-        frames.append((i, (300.0, -400.0, 800.0, 800.0), uv))
+        frames.append((i, (0.0, -400.0, 800.0, 800.0), uv))
 
     symbol(heart, "heart", frames)
-    symbol(place, "place", [(0, (300.0, -400.0, 800.0, 800.0), frames[0][2])])
+    symbol(place, "place", [(0, (0.0, -400.0, 800.0, 800.0), frames[0][2])])
     # The build-menu icon uses this symbol's bounds as its native size. Keep it
     # close to a normal 1x1 icon instead of the 4x4 world footprint.
     symbol(ui, "ui", [(0, (0.0, 0.0, 200.0, 200.0), frames[0][2])])
@@ -716,7 +716,7 @@ def anim_bytes() -> bytes:
         out += struct.pack("<f", 6.0)
         out += struct.pack("<i", frame_count)
         for i in range(frame_count):
-            out += struct.pack("<4f", 300.0, -400.0, 800.0, 800.0)
+            out += struct.pack("<4f", 0.0, -400.0, 800.0, 800.0)
             out += struct.pack("<i", 1)
             out += element(symbol_hash, i if use_frames else 0)
 

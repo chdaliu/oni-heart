@@ -5,8 +5,8 @@ using UnityEngine;
 namespace ONIHeart
 {
     /// <summary>
-    /// 手动装瓶器（输出）、手动卸瓶器（气体/液体输入）、手动装载器（固体/物品输入）。
-    /// 三种建筑都用同一个 1x2 外观，但职责固定，不提供输入/输出模式切换。
+    /// Manual bottler (output), manual unbottler (gas/liquid input), and manual loader (solid/item input).
+    /// All three use the same 1x2 appearance but have fixed roles and no input/output mode switch.
     /// </summary>
     public abstract class ManualBottleConfigBase : IBuildingConfig
     {

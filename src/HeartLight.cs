@@ -3,8 +3,8 @@ using UnityEngine;
 namespace ONIHeart
 {
     /// <summary>
-    /// 元素之心的轻微呼吸光：亮度缓慢起伏，颜色在暖白与极淡的彩色之间漂移。
-    /// 只影响光照表现，不耗电、不发热。
+    /// Soft breathing light for the heart: brightness rises and falls slowly, and the color drifts between warm white and very faint colors.
+    /// Visual only; consumes no power and produces no heat.
     /// </summary>
     public sealed class HeartLight : KMonoBehaviour, ISim1000ms
     {

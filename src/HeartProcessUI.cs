@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace ONIHeart
 {
-    /// <summary>终端配方面板：食物压制器风格的配方行（图标 + 名称 + 当前数量/速率），增减在配方详情面板中调整。</summary>
+    /// <summary>Terminal recipe panel: food-press-style recipe rows (icon + name + current quantity/rate); amounts are adjusted in the recipe detail panel.</summary>
     public sealed class HeartRecipePanel : KMonoBehaviour
     {
         private sealed class RowBinding
@@ -52,8 +52,8 @@ namespace ONIHeart
 
         private void Update()
         {
-            // 终端的“目标元素之心”按钮可能随时切换，配方面板必须跟着换绑；
-            // 元素之心改名时标题也要跟着更新。
+            // The terminal's target-heart button can change at any time, so the recipe panel must rebind.
+            // The title must also update when the heart is renamed.
             if (terminal != null &&
                 (terminal.Processor != processor || terminal.HeartName != lastHeartName))
             {
@@ -121,7 +121,7 @@ namespace ONIHeart
 
             Clear();
 
-            // 原版配方列表预制体里还带着分类标题/占位配方，全部隐藏，只保留我们自己的行。
+            // The vanilla recipe-list prefab still contains category headers and placeholder recipes; hide them all and keep only our rows.
             for (int i = content.childCount - 1; i >= 0; i--)
             {
                 Transform child = content.GetChild(i);
@@ -140,7 +140,7 @@ namespace ONIHeart
                 rowPrefab.SetActive(false);
             }
 
-            // 配方与元素之心的信息显示在建筑的属性面板状态里，配方列表不再单独加标题行。
+            // Recipe and heart info are shown as a status item in the building properties panel, so the recipe list no longer needs a header row.
             if (processor == null)
             {
                 rows.Add(new RowBinding { row = CreateRow(STRINGS.UI.ONIHEART.TERMINAL_NO_HEART, null, true) });
@@ -233,8 +233,8 @@ namespace ONIHeart
             };
             rows.Add(binding);
 
-            // 配方行只显示当前数量/速率，增减交给点击后打开的配方详情面板，
-            // 与食物压制器的配方详情页保持一致。
+            // Recipe rows only display the current quantity/rate; increment/decrement is handled in the recipe detail panel.
+            // Keep this consistent with the food press recipe detail page.
             HideChild(row, "Queue/IncButton");
             HideChild(row, "Queue/DecButton");
 
@@ -361,7 +361,7 @@ namespace ONIHeart
         }
     }
 
-    /// <summary>左侧“配方详情”面板：显示选中配方并控制速率/数量。</summary>
+    /// <summary>Left "recipe detail" panel: shows the selected recipe and controls rate/amount.</summary>
     public sealed class HeartRecipeDetailScreen : KScreen
     {
         private Image icon;
@@ -390,8 +390,8 @@ namespace ONIHeart
         {
             base.ScreenUpdate(topLevel);
 
-            // 原版 SelectedRecipeQueueScreen 的某些逻辑可能重新激活占位区域；
-            // 这里持续保持隐藏，确保不会再次出现“尚未发现的原料”。
+            // Some vanilla SelectedRecipeQueueScreen logic may reactivate the placeholder areas;
+            // keep them hidden continuously so "undiscovered ingredients" never reappears.
             for (int i = 0; i < forcedHidden.Count; i++)
             {
                 GameObject go = forcedHidden[i];
@@ -401,7 +401,7 @@ namespace ONIHeart
                 }
             }
 
-            // 配方详情打开时，目标数量可能因为处理完成而减少；未在输入时同步显示。
+            // When the recipe detail is open, the target amount may decrease after processing; sync it when not editing.
             if (processor == null || amountInput == null || amountInput.field == null ||
                 amountInput.field.isFocused || Time.unscaledTime < nextRefreshTime)
             {
@@ -439,7 +439,7 @@ namespace ONIHeart
             Debug.Log("[ONIHeart] Recipe detail InitializeUI on '" + name + "', vanilla=" +
                 (GetComponent<SelectedRecipeQueueScreen>() != null));
 
-            // 如果实例上还残留原版组件，立即移除，避免它重新激活原料占位区域。
+            // Remove any remaining vanilla component immediately so it cannot reactivate the ingredient placeholder area.
             SelectedRecipeQueueScreen vanillaScreen = GetComponent<SelectedRecipeQueueScreen>();
             if (vanillaScreen != null)
             {
@@ -581,8 +581,8 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 隐藏原版配方详情里的原料/效果区域，只留下我们自己的配方说明和底部数量控制栏。
-        /// 不依赖固定层级，避免不同版本/DLC 的 prefab 结构差异留下“尚未发现原料”等占位文本。
+        /// Hide the vanilla ingredient/effect areas in the recipe detail, leaving only our description and bottom amount controls.
+        /// Do not rely on fixed hierarchy paths so different game/DLC prefab layouts cannot leave placeholder text behind.
         /// </summary>
         private void HideVanillaRecipeSections()
         {
@@ -611,7 +611,7 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 彻底销毁原版占位区域，避免任何原版逻辑再次把它激活。
+        /// Destroy vanilla placeholder sections completely so no vanilla logic can reactivate them.
         /// </summary>
         private void Remove(GameObject go)
         {
@@ -646,7 +646,7 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 直接按本地化 key 找原版占位文本，连它所在的整个容器一起隐藏。
+        /// Find vanilla placeholder text by localization key and hide its whole container.
         /// </summary>
         private void HideUnwantedLabels()
         {
@@ -824,7 +824,7 @@ namespace ONIHeart
         }
     }
 
-    /// <summary>标记我们克隆的食物压制器屏幕，并保存它要显示的终端面板。</summary>
+    /// <summary>Marks the cloned food-press screen and stores the terminal panel it should display.</summary>
     public sealed class HeartTerminalRecipeMarker : KMonoBehaviour
     {
         public HeartRecipePanel panel;
@@ -888,7 +888,7 @@ namespace ONIHeart
                 return;
             }
 
-            // 只使用原版的食物压制器屏幕外观，不运行它的配方/队列逻辑。
+            // Use only the vanilla food-press screen appearance; do not run its recipe/queue logic.
             screen.enabled = false;
 
             RectTransform rect = clone.GetComponent<RectTransform>();
@@ -1088,8 +1088,8 @@ namespace ONIHeart
     }
 
     /// <summary>
-    /// 兜底：如果某个 SelectedRecipeQueueScreen 没有绑定 ComplexFabricator（例如被误用),
-    /// 隐藏原版的“所需研究/尚未发现的原料”占位区域。
+    /// Fallback: if a SelectedRecipeQueueScreen is not bound to a ComplexFabricator (e.g. misused),
+    /// hide the vanilla "research required / undiscovered ingredients" placeholders.
     /// </summary>
     [HarmonyPatch(typeof(KScreen), nameof(KScreen.ScreenUpdate))]
     public static class HeartOrphanRecipeDetailPatch

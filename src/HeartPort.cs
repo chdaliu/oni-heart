@@ -14,10 +14,10 @@ namespace ONIHeart
     }
 
     /// <summary>
-    /// 所有接口建筑共用的连接状态。负责：
-    /// 1. 找到一个同世界的元素之心；
-    /// 2. 把输入/输出组件指向该元素之心的 Storage；
-    /// 3. 在属性面板底部按钮区提供切换元素之心的按钮。
+    /// Shared connection state for all interface buildings. Responsibilities:
+    /// 1. Find a heart in the same world.
+    /// 2. Point the input/output components at that heart's Storage.
+    /// 3. Provide a target-heart switch in the property panel button area.
     /// </summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class HeartPort : KMonoBehaviour, ISaveLoadable, ISim1000ms, IGameObjectEffectDescriptor
@@ -192,8 +192,8 @@ namespace ONIHeart
 
             if (consumer != null)
             {
-                // 输入使用接口自己的 Storage 作为独立缓冲，PortTransfer 再转入元素之心。
-                // 输入接口不筛选元素，管道里送来什么就接收什么。
+                // Inputs use the interface's own Storage as a buffer; PortTransfer moves items into the heart.
+                // Input interfaces do not filter elements; they accept whatever the pipe delivers.
                 consumer.storage = GetComponent<Storage>();
                 consumer.capacityKG = float.PositiveInfinity;
                 consumer.consumptionRate = float.PositiveInfinity;
@@ -208,7 +208,7 @@ namespace ONIHeart
 
             if (dispenser != null)
             {
-                // 输出接口必须选择一个元素，且一次只能输出一种。
+                // Output interfaces must select one element and can output only that element.
                 bool hasElement = selectedElement != SimHashes.Vacuum;
                 dispenser.storage = heart.Storage;
                 dispenser.elementFilter = hasElement ? new SimHashes[] { selectedElement } : null;

@@ -3,8 +3,8 @@ using System;
 namespace ONIHeart
 {
     /// <summary>
-    /// 所有建筑与 UI 文本。保持中文为默认值，这样即使没有额外的翻译文件，
-    /// 中文客户端也能直接看到正确文本。
+    /// All building and UI text. Chinese is kept as the default so that even without extra translation files,
+    /// Chinese clients see the correct text.
     /// </summary>
     public static class STRINGS
     {

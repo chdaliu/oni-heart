@@ -24,13 +24,13 @@ namespace ONIHeart
                 TUNING.BUILDINGS.DECOR.NONE,
                 TUNING.NOISE_POLLUTION.NONE);
 
-            // 元素之心是正常建筑：占用 Building 层、需要地基、会被障碍阻挡。
-            // 只有接口建筑才使用独立的占位层来无视障碍。
+            // The heart is a normal building: it occupies the Building layer, needs a foundation, and is blocked by obstacles.
+            // Only interface buildings use separate placeholder layers to ignore obstacles.
             def.ObjectLayer = ObjectLayer.Building;
             def.ContinuouslyCheckFoundation = true;
             def.Invincible = true;
 
-            // 允许被液体淹没：不添加 Floodable，不会被“淹没”状态停机。
+            // Allow flooding: do not add Floodable, so it never stops due to a "flooded" state.
             def.Floodable = false;
 
             def.Overheatable = false;
@@ -47,7 +47,7 @@ namespace ONIHeart
             def.DefaultAnimState = "idle";
             def.BaseTimeUntilRepair = -1f;
 
-            // 轻微照明 + 大量装饰值
+            // Gentle lighting + high decor value
             def.BaseDecor = 100f;
             def.BaseDecorRadius = 10f;
 
@@ -80,14 +80,14 @@ namespace ONIHeart
                 Storage.StoredItemModifier.Insulate
             });
 
-            // 允许复制人优先搬运，和普通箱子一样有工作优先级。
+            // Allow duplicants to prioritize hauling to it, like a normal storage bin.
             Prioritizable.AddRef(go);
 
-            // 允许玩家重命名，以便区分多个元素之心。
+            // Allow renaming so multiple hearts can be distinguished.
             go.AddOrGet<UserNameable>();
 
-            // 像容器箱子一样提供材料勾选列表：只包含固体分类。
-            // 气体/液体不在列表里，仍通过接口输入/输出；因此不允许过滤变更把已有气液掉出来。
+            // Provide a storage-bin-like material checklist containing only solid categories.
+            // Gases/liquids are not listed and still enter/leave through interfaces, so filter changes must not drop existing gas/liquid.
             TreeFilterable filterable = go.AddOrGet<TreeFilterable>();
             filterable.dropIncorrectOnFilterChange = false;
             filterable.autoSelectStoredOnLoad = true;
@@ -95,8 +95,8 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// 元素之心可以收集所有固体物品（含种子、衣服、蛋、食物等），
-        /// 但不会把气体/液体分类加入材料列表。
+        /// The heart can collect all solid items (seeds, clothing, eggs, food, etc.),
+        /// but gas/liquid categories are not added to the material list.
         /// </summary>
         public static List<Tag> GetSolidItemCategories()
         {
@@ -129,7 +129,7 @@ namespace ONIHeart
             go.AddOrGet<HeartProcessor>();
             go.AddOrGet<HeartSolidCollector>();
             go.AddOrGet<HeartAnimator>();
-            // 调试：首次模拟时预装全部元素，便于直接测试所有配方。
+            // Debug: preload all elements on the first simulation tick for immediate recipe testing.
             go.AddOrGet<HeartDebugSeeder>();
 
             Light2D light = go.AddOrGet<Light2D>();

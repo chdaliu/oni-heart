@@ -11,7 +11,7 @@ namespace ONIHeart
         Solid
     }
 
-    /// <summary>手动装瓶器/卸瓶器/装载器与元素之心的连接。支持切换目标元素之心。</summary>
+    /// <summary>Link between a manual bottler/unbottler/loader and the element heart. Supports switching the target heart.</summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class ManualBottleLink : KMonoBehaviour, ISaveLoadable, ISim1000ms
     {
@@ -178,7 +178,7 @@ namespace ONIHeart
         }
     }
 
-    /// <summary>给物品打上来源/目标标签，用来阻断装瓶器 → 同一元素之心的卸瓶器循环。</summary>
+    /// <summary>Tags items with their source/target to block a bottler -> unbottler loop for the same heart.</summary>
     public static class ManualLoopGuard
     {
         public static Tag StoredTag(int heartCell)
@@ -193,9 +193,9 @@ namespace ONIHeart
     }
 
     /// <summary>
-    /// 手动装瓶器：像手压泵一样，只有复制人需要时才来操作一次。
-    /// 建筑里维持一份“液体/气体源”标记物品，复制人取用该物品时触发工作，
-    /// 完成后从元素之心取一份并生成一瓶。
+    /// Manual bottler: like a pitcher pump, it is operated only when a duplicant needs it.
+    /// The building keeps one "liquid/gas source" marker item; a duplicant using it triggers work,
+    /// and on completion one portion is taken from the heart and produced as a bottle.
     /// </summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class ManualBottleOutput : Workable, ISim1000ms, IGameObjectEffectDescriptor
@@ -500,15 +500,15 @@ namespace ONIHeart
     }
 
     /// <summary>
-    /// 手动卸瓶器 / 手动装载器：让复制人把瓶装气体/液体或固体物品送进建筑，
-    /// 再自动转入元素之心。支持勾选输入列表，但不从元素之心取物。
+    /// Manual unbottler / manual loader: duplicants deliver bottled gas/liquid or solid items to the building,
+    /// which then transfers them into the heart. Supports an input checklist but never extracts from the heart.
     /// </summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class ManualItemInput : KMonoBehaviour, ISim1000ms, IGameObjectEffectDescriptor
     {
         public ManualBottlePhase phase = ManualBottlePhase.Liquid;
 
-        /// <summary>true：瓶装气体/液体，拆瓶后把元素质量写入元素之心；false：固体/物品，直接转移物品。</summary>
+        /// <summary>true: bottled gas/liquid, unbottle and write element mass into the heart; false: solids/items, transfer items directly.</summary>
         public bool unbottle = true;
 
         private ManualBottleLink link;

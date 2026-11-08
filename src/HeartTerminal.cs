@@ -5,7 +5,7 @@ using UnityEngine;
 namespace ONIHeart
 {
     /// <summary>
-    /// 元素终端机：2x2 科学仪器。选择并控制一个元素之心的某一种处理操作。
+    /// Element terminal: 2x2 science building. Selects and controls one processing operation of an element heart.
     /// </summary>
     [SerializationConfig(MemberSerialization.OptIn)]
     public sealed class HeartTerminal : KMonoBehaviour, ISaveLoadable, ISim1000ms, IGameObjectEffectDescriptor
@@ -15,7 +15,7 @@ namespace ONIHeart
         [Serialize]
         public int targetHeartCell = -1;
 
-        // 由建筑配置设置，不参与存档。
+        // Set by the building config; not serialized.
         public HeartProcessOperation operation = HeartProcessOperation.Decompose;
 
         private HeartOfElements heart;
@@ -143,7 +143,7 @@ namespace ONIHeart
                 Game.Instance.userMenu.Refresh(gameObject);
             }
 
-            // 属性面板里的“配方 / 元素之心”状态也要跟着刷新。
+            // The "recipe / heart" status in the property panel must refresh too.
             if (DetailsScreen.Instance != null)
             {
                 DetailsScreen.Instance.Trigger((int)GameHashes.UIRefreshData);

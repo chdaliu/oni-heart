@@ -82,8 +82,8 @@ namespace ONIHeart
         public override void ConfigureBuildingTemplate(GameObject go, Tag prefab_tag)
         {
             Storage storage = go.AddOrGet<Storage>();
-            // 输入接口先写入自己的无限缓冲，再转入元素之心；
-            // 这样多个同参数接口不会共享容量/输入额度。
+            // Input interfaces first write into their own infinite buffer, then transfer into the heart;
+            // this prevents multiple interfaces with the same settings from sharing capacity or input quota.
             storage.capacityKg = float.MaxValue;
             storage.showInUI = false;
             storage.showDescriptor = false;

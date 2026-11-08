@@ -1,8 +1,8 @@
 namespace ONIHeart
 {
     /// <summary>
-    /// 输入接口的独立缓冲：ConduitConsumer 先写入接口自己的 Storage，
-    /// 再定期转入元素之心。这样多个同参数接口不会共享容量或输入额度。
+    /// Independent buffer for input interfaces: ConduitConsumer first writes into the interface's own Storage,
+    /// then periodically transfers into the heart. This prevents multiple interfaces with the same settings from sharing capacity or input quota.
     /// </summary>
     public sealed class PortTransfer : KMonoBehaviour, ISim200ms
     {
