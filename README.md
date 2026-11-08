@@ -228,8 +228,6 @@ tools/generate_building_anims.py 重新生成上述建筑外观并打包 KAnim
 
 # ONI-Heart (English)
 
-# 元素之心 (ONI-Heart)
-
 An Oxygen Not Included mod that adds a 4x4 building, the **Heart of Elements**, plus gas/liquid input and output interfaces and a bidirectional power interface.
 
 ## Features
