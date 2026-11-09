@@ -129,8 +129,6 @@ namespace ONIHeart
             go.AddOrGet<HeartProcessor>();
             go.AddOrGet<HeartSolidCollector>();
             go.AddOrGet<HeartAnimator>();
-            // Debug: preload all elements on the first simulation tick for immediate recipe testing.
-            go.AddOrGet<HeartDebugSeeder>();
 
             Light2D light = go.AddOrGet<Light2D>();
             light.Color = new Color(1f, 0.96f, 0.88f, 1f);

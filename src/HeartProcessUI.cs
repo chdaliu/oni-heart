@@ -327,8 +327,6 @@ namespace ONIHeart
 
             KScreen screen = DetailsScreen.Instance.SetSecondarySideScreen(detailPrefab, STRINGS.UI.ONIHEART.RECIPE_DETAIL_TITLE);
             HeartRecipeDetailScreen detail = screen != null ? screen.GetComponent<HeartRecipeDetailScreen>() : null;
-            Debug.Log("[ONIHeart] OpenDetail element=" + binding.element + ", screen=" +
-                (screen != null ? screen.name : "null") + ", detail=" + (detail != null));
             if (detail != null)
             {
                 detail.SetRecipe(processor, operation, binding.element, binding.isRate);
@@ -371,7 +369,6 @@ namespace ONIHeart
         private MultiToggle decrement;
         private MultiToggle increment;
         private bool initialized;
-        private bool loggedLabels;
         private readonly List<GameObject> forcedHidden = new List<GameObject>();
 
         private HeartProcessor processor;
@@ -425,7 +422,6 @@ namespace ONIHeart
             InitializeUI();
             HideVanillaRecipeSections();
             Refresh();
-            LogVisibleLabels();
         }
 
         private void InitializeUI()
@@ -436,8 +432,6 @@ namespace ONIHeart
             }
 
             initialized = true;
-            Debug.Log("[ONIHeart] Recipe detail InitializeUI on '" + name + "', vanilla=" +
-                (GetComponent<SelectedRecipeQueueScreen>() != null));
 
             // Remove any remaining vanilla component immediately so it cannot reactivate the ingredient placeholder area.
             SelectedRecipeQueueScreen vanillaScreen = GetComponent<SelectedRecipeQueueScreen>();
@@ -666,68 +660,6 @@ namespace ONIHeart
                     Remove(parent != null ? parent.gameObject : label.gameObject);
                 }
             }
-        }
-
-        private void LogVisibleLabels()
-        {
-            if (loggedLabels)
-            {
-                return;
-            }
-
-            loggedLabels = true;
-            StringBuilder builder = new StringBuilder();
-            LocText[] labels = GetComponentsInChildren<LocText>(true);
-            for (int i = 0; i < labels.Length; i++)
-            {
-                LocText label = labels[i];
-                if (label != null && label.gameObject.activeInHierarchy)
-                {
-                    builder.Append(GetPath(label.transform)).Append('=').Append(label.text).Append(" | ");
-                }
-            }
-
-            Debug.Log("[ONIHeart] Recipe detail labels: " + builder);
-
-            StringBuilder sections = new StringBuilder();
-            Transform[] all = GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < all.Length; i++)
-            {
-                Transform t = all[i];
-                if (t == null)
-                {
-                    continue;
-                }
-
-                string n = t.name;
-                if (n.IndexOf("Undiscovered", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    n.IndexOf("Ingredient", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    n.IndexOf("Research", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    sections.Append(GetPath(t)).Append("(active=")
-                        .Append(t.gameObject.activeSelf).Append(") | ");
-                }
-            }
-
-            Debug.Log("[ONIHeart] Recipe detail leftover sections: " + sections);
-        }
-
-        private string GetPath(Transform target)
-        {
-            if (target == null)
-            {
-                return "";
-            }
-
-            string path = target.name;
-            Transform current = target.parent;
-            while (current != null && current != transform)
-            {
-                path = current.name + "/" + path;
-                current = current.parent;
-            }
-
-            return path;
         }
 
         private LocText FindLabel(string name)
@@ -1001,8 +933,6 @@ namespace ONIHeart
                 screenInstance = screen,
                 tab = DetailsScreen.SidescreenTabTypes.Config
             });
-
-            Debug.Log("[ONIHeart] Terminal recipe side screen registered.");
         }
     }
 

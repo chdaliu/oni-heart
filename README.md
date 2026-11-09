@@ -26,15 +26,6 @@
 - 大量装饰值：基础装饰 +100，装饰半径 10 格。
 - 不发热、不耗电、电力无损耗。
 
-### 调试：预装全部元素
-
-为了方便直接测试配方，元素之心进入模拟时会自动向内部 Storage 预装所有已启用的元素各 1000kg，包含**气体、液体和固体**，并把已发现的固体资源勾选进搬运列表。这样不用先接气体/液体管道或手动搬固体就能测试分解、固化、液化和气化。
-
-- 调试预装按 `HeartDebugSeeder.SeedVersion` 记录；需要重新灌注时把 `SeedVersion` 加 1 再重新构建。
-- 正常消耗后不会自动补满；如需再次补装，把 `src/HeartDebugSeeder.cs` 里的 `SeedVersion` 加 1 后重新构建。
-- 关闭方式：把 `src/HeartDebugSeeder.cs` 里的 `Enabled` 常量改为 `false` 后重新构建。
-- 调试预装只影响元素之心，不会改变建筑的正常工作逻辑。
-
 ### 元素终端机
 
 新增四种 2x2 科学仪器，建造在 **站台（Stations）** 栏：
@@ -188,7 +179,6 @@ src/
   HeartProcessUI.cs     终端配方面板（食物压制器风格配方列表 + 配方详情）
   HeartTerminal.cs      终端连接元素之心 / 选择目标
   HeartTerminalConfig.cs 四种 2x2 元素终端机配置
-  HeartDebugSeeder.cs   调试用：首次模拟时预装全部元素
   HeartAnimator.cs      循环播放宝石心动画
   HeartLight.cs         轻微呼吸光 / 颜色漂移
   PortConfigs.cs        五种 1x1 元素接口配置
@@ -249,15 +239,6 @@ An Oxygen Not Included mod that adds a 4x4 building, the **Heart of Elements**, 
 - Soft light: about 600 Lux of warm-white breathing light with a slowly drifting color; no power use and no heat.
 - High decor value: base decor +100, decor radius 10 cells.
 - No heat generation, no power consumption, no power loss.
-
-### Debug: preload all elements
-
-To make recipe testing easy, the heart preloads 1000 kg of every enabled element into its internal Storage when it first enters simulation, including **gases, liquids, and solids**, and selects discovered solid resources in the hauling list. This lets you test decomposition, solidification, liquefaction, and vaporization without connecting gas/liquid pipes or hauling solids manually.
-
-- Debug seeding is tracked by `HeartDebugSeeder.SeedVersion`; increment `SeedVersion` and rebuild to seed again.
-- Normal consumption is not refilled automatically. To refill, increment `SeedVersion` in `src/HeartDebugSeeder.cs` and rebuild.
-- To disable: set the `Enabled` constant in `src/HeartDebugSeeder.cs` to `false` and rebuild.
-- Debug seeding only affects the Heart of Elements and does not change normal building logic.
 
 ### Element terminals
 
@@ -412,7 +393,6 @@ src/
   HeartProcessUI.cs     Terminal recipe panel (food-press-style list + recipe detail)
   HeartTerminal.cs      Terminal connection to heart / target selection
   HeartTerminalConfig.cs Four 2x2 element terminal configs
-  HeartDebugSeeder.cs   Debug: preload all elements on first simulation
   HeartAnimator.cs      Loops the gem-heart animation
   HeartLight.cs         Soft breathing light / color drift
   PortConfigs.cs        Five 1x1 element interface configs
