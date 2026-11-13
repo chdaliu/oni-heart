@@ -15,7 +15,7 @@ namespace ONIHeart
 
     /// <summary>
     /// The game scans all loaded assemblies for IBuildingConfig, so building registration itself needs no manual call.
-    /// This class only adds strings and build-menu entries.
+    /// This class adds strings, build-menu entries, and the shared research requirement.
     /// </summary>
     [HarmonyPatch(typeof(GeneratedBuildings), nameof(GeneratedBuildings.LoadGeneratedBuildings))]
     public static class GeneratedBuildingsPatch
@@ -32,7 +32,8 @@ namespace ONIHeart
             initialized = true;
             LocString.CreateLocStringKeys(typeof(STRINGS), null);
 
-            // The heart is in the Base category; other buildings are in their gas/liquid/power categories and none require research.
+            // The heart is in the Base category; other buildings are in their gas/liquid/power categories.
+            // Tech requirements are assigned in ONIHeartTechRequirementPatch.
             AddToPlanScreen("Base", HeartConfig.ID);
             AddToPlanScreen("Base", ManualLoaderConfig.ID);
             AddToPlanScreen("HVAC", GasInConfig.ID);
@@ -88,6 +89,52 @@ namespace ONIHeart
             }
 
             ModUtil.AddBuildingToPlanScreen(category, buildingId, subcategory);
+        }
+    }
+
+    /// <summary>
+    /// Assigns every ONI-Heart building to a research tech. The game has no tech literally named
+    /// "Advanced Computer"; the tier associated with the Super Computer is "Advanced Research".
+    /// Change REQUIRED_TECH here if a different tech (for example DupeTrafficControl / Computing) is wanted.
+    /// </summary>
+    [HarmonyPatch(typeof(Db), nameof(Db.Initialize))]
+    public static class ONIHeartTechRequirementPatch
+    {
+        public const string REQUIRED_TECH = "AdvancedResearch";
+
+        private static bool initialized;
+
+        public static void Postfix()
+        {
+            if (initialized)
+            {
+                return;
+            }
+
+            initialized = true;
+            Tech tech = Db.Get().Techs.Get(REQUIRED_TECH);
+            if (tech == null)
+            {
+                return;
+            }
+
+            tech.AddUnlockedItemIDs(
+                HeartConfig.ID,
+                ManualLoaderConfig.ID,
+                GasInConfig.ID,
+                GasOutConfig.ID,
+                ManualBottleGasConfig.ID,
+                ManualUnbottlerGasConfig.ID,
+                LiquidInConfig.ID,
+                LiquidOutConfig.ID,
+                ManualBottleLiquidConfig.ID,
+                ManualUnbottlerLiquidConfig.ID,
+                PowerConfig.ID,
+                HeartTerminalDecomposeConfig.ID,
+                HeartTerminalSolidifyConfig.ID,
+                HeartTerminalLiquefyConfig.ID,
+                HeartTerminalVaporizeConfig.ID,
+                HeartTerminalThermostatConfig.ID);
         }
     }
 }

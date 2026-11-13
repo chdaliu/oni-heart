@@ -142,7 +142,7 @@
 - **手动装载器**：基地（Base）栏
 - **元素终端机（分解 / 固化 / 液化 / 气化 / 温控）**：站台（Stations）栏
 
-所有建筑都不加入科技树，**无需研究，初始即可建造**。
+所有建筑都归入 **高级研究（Advanced Research）** 科技，需要先完成该科技才能建造。
 
 ## DLC 兼容
 
@@ -371,7 +371,7 @@ For power, all power interfaces are connected through the heart's shared power p
 - **Manual Loader**: Base category
 - **Element Terminals (Decompose / Solidify / Liquefy / Vaporize / Thermostat)**: Stations category
 
-None of the buildings are added to the tech tree. **No research required; available from the start.**
+All buildings are placed under the **Advanced Research** tech and require that research to be completed before they can be built.
 
 ## DLC compatibility
 
