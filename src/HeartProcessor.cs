@@ -370,7 +370,9 @@ namespace ONIHeart
             heart.Storage.ConsumeIgnoringDisease(SimHashes.Water.CreateTag(), mass);
             heart.Storage.AddElement(SimHashes.Oxygen, mass * WATER_TO_OXYGEN, DECOMPOSE_TEMPERATURE, byte.MaxValue, 0, false, false);
             heart.Storage.AddElement(SimHashes.Hydrogen, mass * WATER_TO_HYDROGEN, DECOMPOSE_TEMPERATURE, byte.MaxValue, 0, false, false);
-            ExchangeHeat(DECOMPOSE_HEAT_PER_KG * mass);
+
+            // Reaction heat is converted straight into electricity instead of being exchanged with the environment.
+            heart.StorePower(DECOMPOSE_HEAT_PER_KG * mass);
         }
 
         private void ProcessPending(HeartProcessOperation operationKind, float dt)
@@ -413,9 +415,14 @@ namespace ONIHeart
                         continue;
                     }
 
-                    PhaseChange(operationKind, sourceElement, source, mass);
+                    float processed = PhaseChange(operationKind, sourceElement, source, mass);
+                    if (processed <= 0.0001f)
+                    {
+                        // Not enough stored power to absorb the required heat; retry when power is available.
+                        continue;
+                    }
 
-                    remaining -= mass;
+                    remaining -= processed;
                     if (remaining <= 0.001f)
                     {
                         map.Remove(tag);
@@ -428,23 +435,53 @@ namespace ONIHeart
             }
         }
 
-        private void PhaseChange(HeartProcessOperation operationKind, Element sourceElement, PrimaryElement source, float mass)
+        /// <summary>
+        /// Converts <paramref name="mass"/> kg of the input element into its phase target.
+        /// No heat is exchanged with the environment: heat that would be released is turned into
+        /// electricity, and heat that would be absorbed is paid for with stored electricity.
+        /// Returns the mass actually processed (0 when there is not enough power).
+        /// </summary>
+        private float PhaseChange(HeartProcessOperation operationKind, Element sourceElement, PrimaryElement source, float mass)
         {
             Element target;
             float outputTemperature;
             if (!TryGetPhaseTarget(operationKind, sourceElement, out target, out outputTemperature))
             {
-                return;
+                return 0f;
             }
 
-            float heat = mass * sourceElement.specificHeatCapacity *
-                         (outputTemperature - source.Temperature) * 1000f;
+            // Joules needed per kg to move the element to its output temperature (negative = released).
+            float heatPerKg = sourceElement.specificHeatCapacity *
+                              (outputTemperature - source.Temperature) * 1000f;
+
+            if (heatPerKg > 0f)
+            {
+                float affordableMass = heart.StoredJoules / heatPerKg;
+                if (affordableMass < mass)
+                {
+                    mass = affordableMass;
+                }
+
+                if (mass <= 0.0001f)
+                {
+                    return 0f;
+                }
+            }
 
             heart.Storage.ConsumeIgnoringDisease(sourceElement.id.CreateTag(), mass);
             heart.Storage.AddElement(target.id, mass, outputTemperature, byte.MaxValue, 0, false, false);
 
-            // Heat required to raise the input is taken from the environment; heat released on cooling is returned to it.
-            ExchangeHeat(-heat);
+            float heat = heatPerKg * mass;
+            if (heat < 0f)
+            {
+                heart.StorePower(-heat);
+            }
+            else if (heat > 0f)
+            {
+                heart.ConsumePower(heat);
+            }
+
+            return mass;
         }
 
         public bool TryGetPhaseTargetForUI(HeartProcessOperation operationKind, Element source, out Element target, out float temperature)
@@ -616,88 +653,6 @@ namespace ONIHeart
 
             PrimaryElement primary = item.GetComponent<PrimaryElement>();
             return primary != null && primary.Mass > 0f ? primary : null;
-        }
-
-        /// <summary>
-        /// Transfer heat to/from the environment cell with the highest heat capacity within the building footprint.
-        /// Positive values release heat to the environment; negative values absorb heat from it.
-        /// </summary>
-        private void ExchangeHeat(float joulesToEnvironment)
-        {
-            if (heart == null || Mathf.Abs(joulesToEnvironment) < 0.01f)
-            {
-                return;
-            }
-
-            int cell = FindEnvironmentCell();
-            if (cell < 0)
-            {
-                return;
-            }
-
-            Element element = Grid.Element[cell];
-            float mass = Grid.Mass[cell];
-            if (element == null || mass <= 0f || element.specificHeatCapacity <= 0f)
-            {
-                return;
-            }
-
-            float heatCapacity = mass * element.specificHeatCapacity * 1000f;
-            float deltaTemperature = joulesToEnvironment / heatCapacity;
-            float newTemperature = Mathf.Clamp(Grid.Temperature[cell] + deltaTemperature, 1f, 9999f);
-
-            SimMessages.ModifyCell(
-                cell,
-                element.idx,
-                newTemperature,
-                mass,
-                Grid.DiseaseIdx[cell],
-                Grid.DiseaseCount[cell],
-                SimMessages.ReplaceType.Replace);
-        }
-
-        private int FindEnvironmentCell()
-        {
-            Building building = heart.GetComponent<Building>();
-            if (building == null || building.Def == null)
-            {
-                return -1;
-            }
-
-            int bottomLeft = building.GetBottomLeftCell();
-            Vector2I origin = Grid.CellToXY(bottomLeft);
-            int width = building.Def.WidthInCells;
-            int height = building.Def.HeightInCells;
-
-            int bestCell = -1;
-            float bestHeatCapacity = 0f;
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    int cell = Grid.XYToCell(origin.x + x, origin.y + y);
-                    if (!Grid.IsValidCell(cell))
-                    {
-                        continue;
-                    }
-
-                    Element element = Grid.Element[cell];
-                    if (element == null || element.id == SimHashes.Vacuum || element.id == SimHashes.Unobtanium)
-                    {
-                        continue;
-                    }
-
-                    float heatCapacity = Grid.Mass[cell] * element.specificHeatCapacity;
-                    if (heatCapacity > bestHeatCapacity)
-                    {
-                        bestHeatCapacity = heatCapacity;
-                        bestCell = cell;
-                    }
-                }
-            }
-
-            return bestCell;
         }
 
         public List<Descriptor> GetDescriptors(GameObject go)
