@@ -15,6 +15,15 @@ namespace ONIHeart
         [Serialize]
         public int targetHeartCell = -1;
 
+        [Serialize]
+        public SimHashes thermostatElement = SimHashes.Vacuum;
+
+        [Serialize]
+        public float thermostatTargetKelvin = 293.15f;
+
+        [Serialize]
+        public bool thermostatEnabled;
+
         // Set by the building config; not serialized.
         public HeartProcessOperation operation = HeartProcessOperation.Decompose;
 
@@ -39,6 +48,7 @@ namespace ONIHeart
             }
 
             ResolveHeart(force: true);
+            NormalizeThermostat();
         }
 
         protected override void OnCleanUp()
@@ -106,6 +116,107 @@ namespace ONIHeart
             heart = found;
         }
 
+        public bool ThermostatEnabled => thermostatEnabled;
+
+        public SimHashes ThermostatElement => thermostatElement;
+
+        public float ThermostatTargetKelvin => thermostatTargetKelvin;
+
+        public float ThermostatTargetCelsius => thermostatTargetKelvin - 273.15f;
+
+        public string ThermostatElementName
+        {
+            get
+            {
+                if (thermostatElement == SimHashes.Vacuum)
+                {
+                    return STRINGS.UI.ONIHEART.NO_SUBSTANCE;
+                }
+
+                return thermostatElement.CreateTag().ProperName();
+            }
+        }
+
+        public bool TryGetThermostatRange(out float minCelsius, out float maxCelsius)
+        {
+            minCelsius = 0f;
+            maxCelsius = 0f;
+            if (thermostatElement == SimHashes.Vacuum)
+            {
+                return false;
+            }
+
+            Element element = ElementLoader.GetElement(thermostatElement.CreateTag());
+            float minKelvin;
+            float maxKelvin;
+            if (!HeartProcessor.TryGetThermostatRange(element, out minKelvin, out maxKelvin))
+            {
+                return false;
+            }
+
+            minCelsius = minKelvin - 273.15f;
+            maxCelsius = maxKelvin - 273.15f;
+            return true;
+        }
+
+        public void SetThermostatEnabled(bool enabled)
+        {
+            thermostatEnabled = enabled;
+            RefreshUI();
+        }
+
+        public void SetThermostatTargetCelsius(float celsius)
+        {
+            float kelvin = celsius + 273.15f;
+            float minCelsius;
+            float maxCelsius;
+            if (TryGetThermostatRange(out minCelsius, out maxCelsius))
+            {
+                kelvin = Mathf.Clamp(kelvin, minCelsius + 273.15f, maxCelsius + 273.15f);
+            }
+
+            thermostatTargetKelvin = kelvin;
+            RefreshUI();
+        }
+
+        public void SetThermostatElement(Tag tag)
+        {
+            thermostatElement = tag.IsValid && tag != GameTags.Void
+                ? ElementLoader.GetElementID(tag)
+                : SimHashes.Vacuum;
+            ClampThermostatTarget();
+            RefreshUI();
+        }
+
+        private void NormalizeThermostat()
+        {
+            if (operation != HeartProcessOperation.Thermostat)
+            {
+                return;
+            }
+
+            if (float.IsNaN(thermostatTargetKelvin) || float.IsInfinity(thermostatTargetKelvin) ||
+                thermostatTargetKelvin <= 0f)
+            {
+                thermostatTargetKelvin = 293.15f;
+            }
+
+            ClampThermostatTarget();
+        }
+
+        private void ClampThermostatTarget()
+        {
+            float minCelsius;
+            float maxCelsius;
+            if (TryGetThermostatRange(out minCelsius, out maxCelsius))
+            {
+                thermostatTargetKelvin = Mathf.Clamp(
+                    thermostatTargetKelvin,
+                    minCelsius + 273.15f,
+                    maxCelsius + 273.15f);
+            }
+        }
+
         public void CycleHeart()
         {
             List<HeartOfElements> hearts = new List<HeartOfElements>();
@@ -167,6 +278,8 @@ namespace ONIHeart
                         return STRINGS.UI.ONIHEART.PANEL_LIQUEFY;
                     case HeartProcessOperation.Vaporize:
                         return STRINGS.UI.ONIHEART.PANEL_VAPORIZE;
+                    case HeartProcessOperation.Thermostat:
+                        return STRINGS.UI.ONIHEART.PANEL_THERMOSTAT;
                     default:
                         return STRINGS.UI.ONIHEART.PROCESS_OFF;
                 }
@@ -198,12 +311,23 @@ namespace ONIHeart
         {
             List<Descriptor> descriptors = new List<Descriptor>();
             string state = STRINGS.UI.ONIHEART.TERMINAL_STATE_DISCONNECTED;
-            if (heart != null)
+            HeartProcessor processor = Processor;
+            if (heart != null && processor != null)
             {
-                HeartProcessor processor = Processor;
-                if (processor == null)
+                if (operation == HeartProcessOperation.Thermostat)
                 {
-                    state = STRINGS.UI.ONIHEART.TERMINAL_STATE_DISCONNECTED;
+                    if (!thermostatEnabled || thermostatElement == SimHashes.Vacuum)
+                    {
+                        state = STRINGS.UI.ONIHEART.TERMINAL_STATE_IDLE;
+                    }
+                    else if (processor.GetStoredMass(thermostatElement.CreateTag()) > 0.001f)
+                    {
+                        state = STRINGS.UI.ONIHEART.TERMINAL_STATE_RUNNING;
+                    }
+                    else
+                    {
+                        state = STRINGS.UI.ONIHEART.TERMINAL_STATE_WAITING;
+                    }
                 }
                 else if (processor.IsOperationActive(operation))
                 {
@@ -224,7 +348,35 @@ namespace ONIHeart
             descriptors.Add(new Descriptor(
                 string.Format(STRINGS.UI.ONIHEART.TERMINAL_STATUS, OperationTitle, HeartName),
                 STRINGS.UI.ONIHEART.TERMINAL_STATUS_TOOLTIP));
+
+            if (operation == HeartProcessOperation.Thermostat)
+            {
+                descriptors.Add(new Descriptor(
+                    string.Format(STRINGS.UI.ONIHEART.THERMOSTAT_ELEMENT_STATUS, ThermostatElementName),
+                    STRINGS.UI.ONIHEART.THERMOSTAT_ELEMENT_TOOLTIP));
+
+                descriptors.Add(new Descriptor(
+                    string.Format(STRINGS.UI.ONIHEART.THERMOSTAT_TARGET_STATUS,
+                        FormatCelsius(ThermostatTargetCelsius)),
+                    STRINGS.UI.ONIHEART.THERMOSTAT_TARGET_STATUS_TOOLTIP));
+
+                float minCelsius;
+                float maxCelsius;
+                if (TryGetThermostatRange(out minCelsius, out maxCelsius))
+                {
+                    descriptors.Add(new Descriptor(
+                        string.Format(STRINGS.UI.ONIHEART.THERMOSTAT_RANGE_STATUS,
+                            FormatCelsius(minCelsius), FormatCelsius(maxCelsius)),
+                        STRINGS.UI.ONIHEART.THERMOSTAT_RANGE_TOOLTIP));
+                }
+            }
+
             return descriptors;
+        }
+
+        private static string FormatCelsius(float celsius)
+        {
+            return celsius.ToString("0.#") + " °C";
         }
     }
 }

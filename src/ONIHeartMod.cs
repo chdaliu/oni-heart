@@ -49,6 +49,7 @@ namespace ONIHeart
             AddToPlanScreen("Equipment", HeartTerminalSolidifyConfig.ID, "research");
             AddToPlanScreen("Equipment", HeartTerminalLiquefyConfig.ID, "research");
             AddToPlanScreen("Equipment", HeartTerminalVaporizeConfig.ID, "research");
+            AddToPlanScreen("Equipment", HeartTerminalThermostatConfig.ID, "research");
 
             TUNING.BUILDINGS.PLANSUBCATEGORYSORTING[HeartConfig.ID] = "storage";
             TUNING.BUILDINGS.PLANSUBCATEGORYSORTING[ManualLoaderConfig.ID] = "storage";
@@ -65,6 +66,7 @@ namespace ONIHeart
             TUNING.BUILDINGS.PLANSUBCATEGORYSORTING[HeartTerminalSolidifyConfig.ID] = "research";
             TUNING.BUILDINGS.PLANSUBCATEGORYSORTING[HeartTerminalLiquefyConfig.ID] = "research";
             TUNING.BUILDINGS.PLANSUBCATEGORYSORTING[HeartTerminalVaporizeConfig.ID] = "research";
+            TUNING.BUILDINGS.PLANSUBCATEGORYSORTING[HeartTerminalThermostatConfig.ID] = "research";
         }
 
         /// <summary>

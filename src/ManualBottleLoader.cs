@@ -367,20 +367,24 @@ namespace ONIHeart
             }
 
             PrimaryElement primary = sourceItem.GetComponent<PrimaryElement>();
+            bool returned = false;
             if (primary != null && link != null && link.Heart != null && link.Heart.Storage != null)
             {
-                link.Heart.Storage.AddElement(
+                returned = link.Heart.AddElementMerged(
                     primary.Element.id,
                     primary.Mass,
                     primary.Temperature,
                     primary.DiseaseIdx,
                     primary.DiseaseCount,
                     false,
-                    false);
+                    false) != null;
             }
 
-            sourceStorage.ConsumeIgnoringDisease(sourceItem);
-            sourceItem = null;
+            if (returned)
+            {
+                sourceStorage.ConsumeIgnoringDisease(sourceItem);
+                sourceItem = null;
+            }
         }
 
         protected override void OnCompleteWork(WorkerBase worker)
@@ -588,7 +592,7 @@ namespace ONIHeart
                 float temperature = primary.Temperature;
                 byte diseaseIdx = primary.DiseaseIdx;
                 int diseaseCount = primary.DiseaseCount;
-                PrimaryElement added = heart.Storage.AddElement(
+                PrimaryElement added = heart.AddElementMerged(
                     primary.Element.id,
                     mass,
                     temperature,

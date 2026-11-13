@@ -28,12 +28,13 @@
 
 ### 元素终端机
 
-新增四种 2x2 科学仪器，建造在 **站台（Stations）** 栏：
+新增五种 2x2 科学仪器，建造在 **站台（Stations）** 栏：
 
 - **元素终端机（分解）**
 - **元素终端机（固化）**
 - **元素终端机（液化）**
 - **元素终端机（气化）**
+- **元素终端机（温控）**
 
 选中终端后，底部按钮区会出现当前连接的元素之心名称按钮，点击可切换连接的同世界元素之心。终端只控制所连接元素之心的对应操作；元素之心本身不再显示处理面板。
 
@@ -59,6 +60,18 @@
 - 转化配方按目标数量工作，达到设定数量后停止；输入不足时保留剩余数量，等材料补充后继续。
 - 所有产物直接存入元素之心内部 Storage。
 - 分解和相变都使用元素之心内部电力；需要吸热而电力不足时，会按可用电量降低处理量。
+
+### 温控终端
+
+**元素终端机（温控）** 每个终端只能控制一种液体或气体元素，需要控制多种元素时请分别建造终端。
+
+- 在配置页选择一种元素，并开启恒温控制。
+- 目标温度会被限制在元素的稳定相区内部，并与相变点保持 2K 余量。例如水只能设在约 2°C ~ 98°C，不会结冰或汽化。
+- 温度低于目标时消耗元素之心内部电力加热；温度高于目标时将多余热量按 100% 转换为内部电力。
+- 电力不足时会按可用电量部分加热；冷却产生的电力直接进入元素之心的共享电力池。
+- 同一元素之心上，已经被其他温控终端占用的元素不会重复出现在可选列表中。
+
+同一种液体/气体进入元素之心时，会自动按质量加权平均温度合并成一个堆，而不是保留成两个不同温度的堆。例如已有 20°C 的水，再输入 50°C 的水，会合并为按质量加权计算后的单一水温。没有安装温控终端时不会主动调温，只进行输入温度合并。
 
 ### 手动装瓶 / 卸瓶 / 装载
 
@@ -110,7 +123,7 @@
 ## 使用流程
 
 1. **收集固体**：建造元素之心后，在右侧材料列表里勾选要收集的固体品类；复制人会像往箱子搬东西一样送入元素之心。
-2. **配置处理**：建造元素终端机，它会自动连接最近的元素之心。选中终端后，右侧“配置”页会列出这一类操作的全部合法配方（不要求元素之心当前已有库存）；点开配方详情，在底部控制栏里设置目标数量/速率。属性面板状态会显示当前配方类型和连接的元素之心。
+2. **配置处理**：建造元素终端机，它会自动连接最近的元素之心。选中终端后，右侧“配置”页会列出这一类操作的全部合法配方（不要求元素之心当前已有库存）；点开配方详情，在底部控制栏里设置目标数量/速率。温控终端则在配置页选择一种液体/气体元素、开启恒温并设置目标温度。属性面板状态会显示当前配方类型和连接的元素之心。
 3. **切换目标**：选中终端机、元素接口、装瓶器、卸瓶器或装载器后，点击底部按钮区的元素之心名称按钮，在该世界的元素之心之间循环切换；配方面板会立即跟随新目标刷新。
 4. **接入气液电**：分别建造气体/液体输入输出接口和电力接口。输入接口无需选择物质，会自动接收管道内容；输出接口在过滤列表中单选一种输出元素。输入接口先写入自己的缓冲，再送入元素之心；输出接口直接从元素之心取用。
 5. **手动装瓶/卸瓶/装载**：装瓶器从元素之心取物生成瓶装/元素块；卸瓶器把复制人送来的瓶子转入元素之心；手动装载器把固体/物品转入元素之心。装瓶器和卸瓶器使用来源标记避免同元素之心循环。
@@ -127,7 +140,7 @@
 - **手动卸瓶器（气体）**：气体（HVAC）栏
 - **手动卸瓶器（液体）**：液体（Plumbing）栏
 - **手动装载器**：基地（Base）栏
-- **元素终端机（分解 / 固化 / 液化 / 气化）**：站台（Stations）栏
+- **元素终端机（分解 / 固化 / 液化 / 气化 / 温控）**：站台（Stations）栏
 
 所有建筑都不加入科技树，**无需研究，初始即可建造**。
 
@@ -172,13 +185,13 @@ src/
   ONIHeartMod.cs        Mod 入口 + 建造菜单注册
   STRINGS.cs            中文文本
   HeartConfig.cs        元素之心建筑配置
-  HeartOfElements.cs    无限存储 / 内部电力
+  HeartOfElements.cs    无限存储 / 内部电力 / 同元素气液温度合并
   HeartSolidCollector.cs  固体的 StorageFetch 搬运（像箱子一样）
-  HeartProcessor.cs     四个配方面板：分解速率 / 转化数量
+  HeartProcessor.cs     四个配方面板 + 温控处理：分解速率 / 转化数量 / 恒温
   HeartDeconstructor.cs 拆除时保留物质、清空电力
-  HeartProcessUI.cs     终端配方面板（食物压制器风格配方列表 + 配方详情）
-  HeartTerminal.cs      终端连接元素之心 / 选择目标
-  HeartTerminalConfig.cs 四种 2x2 元素终端机配置
+  HeartProcessUI.cs     终端配方面板（食物压制器风格配方列表 + 配方详情 + 温控选择）
+  HeartTerminal.cs      终端连接元素之心 / 选择目标 / 温控元素与目标温度
+  HeartTerminalConfig.cs 五种 2x2 元素终端机配置
   HeartAnimator.cs      循环播放宝石心动画
   HeartLight.cs         轻微呼吸光 / 颜色漂移
   PortConfigs.cs        五种 1x1 元素接口配置
@@ -201,10 +214,12 @@ tools/generate_building_anims.py 重新生成上述建筑外观并打包 KAnim
 - 元素之心使用自定义 `oniheart_kanim`：折线心形宝石、下半部连续圆弧底（底部两侧轮廓与尖端被磨掉，侧边描边和切缝在下部渐隐）、冠部刻面、多面菱形中心切面、锐利棱线与动态五彩折射，16 帧、6 FPS、循环。中心不是镂空或圆形台面，而是由内菱形和周围四个风筝面组成的真实打磨切面。
 - 元素接口是实体化的铸造接口座：方形安装板、六角螺栓、圆形法兰视窗、顶部带阀门的接管、压力表、状态灯和压铸流向箭头；气体/液体/电力分别使用青绿、蓝、琥珀色，进出口通过箭头和指示灯区分。
 - 手动装瓶器是 1x2 立式装瓶机：铆接机柜、玻璃填充舱、瓶身与液面、填充臂、压力表、手柄、按钮、通风格栅和侧面检修管。
-- 四种元素终端机是 2x2 实体科学仪器：左侧反应罐（水/冰晶/冷凝/沸腾画面）、右侧带金属边框的屏幕、物理键盘、旋钮、手柄、指示灯和对应的顶部装置（双出气管 / 散热器 / 冷凝盘管 / 锅炉烟囱）。
+- 五种元素终端机是 2x2 实体科学仪器：左侧反应罐（水/冰晶/冷凝/沸腾/冷热分区画面）、右侧带金属边框的屏幕、物理键盘、旋钮、手柄、指示灯和对应的顶部装置（双出气管 / 散热器 / 冷凝盘管 / 锅炉烟囱 / 冷热换热器）。
 - 所有自定义建筑外观通过 `tools/building_art.py` 绘制，再由 `tools/generate_building_anims.py` 打包；可修改后重新生成 `anim/assets/`。
 - 宝石心由 `tools/generate_heart_anim.py` 生成，可修改脚本后重新生成 `anim/assets/oniheart/`。
 - 气液接口的输出物质选择使用原版 `FilterSideScreen` 单选列表；元素之心切换统一放在属性面板下方的标准按钮区。
+- 同一种液体/气体进入元素之心时会合并为一个堆，温度按质量加权平均计算；温控终端再把这个堆调整到目标温度。
+- 温控终端的目标温度会被限制在元素稳定相区内，并与相变点保持 2K 余量，避免把水冻成冰或烧成蒸汽。
 - 每个电力接口是一个双向电池连接；所有电力接口共享元素之心的电力池，不再区分输入/输出建筑。
 - 元素接口的“无视障碍”通过为每种接口分配独立的 `ObjectLayer` 实现：普通建筑不阻挡接口，同种接口共用一层因此不能叠加。
 - 接口和装瓶器只挂 `Filterable`，不挂 `ElementFilter`，避免 `ElementFilter` 作为 `ISecondaryOutput` 多出一个管道口；过滤侧栏通过 Harmony patch 适配。
@@ -242,12 +257,13 @@ An Oxygen Not Included mod that adds a 4x4 building, the **Heart of Elements**, 
 
 ### Element terminals
 
-Adds four 2x2 science buildings under the **Stations** category:
+Adds five 2x2 science buildings under the **Stations** category:
 
 - **Element Terminal (Decompose)**
 - **Element Terminal (Solidify)**
 - **Element Terminal (Liquefy)**
 - **Element Terminal (Vaporize)**
+- **Element Terminal (Thermostat)**
 
 When a terminal is selected, a button showing the connected heart's name appears in the bottom button area. Click it to cycle through same-world hearts. A terminal only controls its connected heart's matching operation; the heart itself no longer shows a processing panel.
 
@@ -269,10 +285,22 @@ Only recipes whose output actually exists and is spawnable are shown. Elements w
 Processing rules:
 
 - **Decompose water**: processed at the configured rate; 1 kg/s water -> 0.888 kg/s oxygen + 0.112 kg/s hydrogen, 120 W, 1.25 kW heat. Power and heat scale with rate.
-- **Solidify / Liquefy / Vaporize**: processed at the element's own phase-change temperature; the output temperature is placed on the stable side to avoid immediate re-phasing. Heat is absorbed/released by changing the surrounding environment cell temperature. Conversion throughput is 0.5 kg/s.
+- **Solidify / Liquefy / Vaporize**: processed at the element's own phase-change temperature; the output temperature is placed on the stable side to avoid immediate re-phasing. Released heat is converted into internal power, and absorbed heat is paid for from internal power. Conversion throughput is 0.5 kg/s.
 - Conversion recipes run toward the target amount and stop when reached; if input is insufficient, the remaining amount is kept until more material arrives.
 - All outputs go directly into the heart's internal Storage.
 - Decomposition consumes the heart's internal power; if power is insufficient, throughput is reduced to the available power.
+
+### Thermostat terminal
+
+Each **Element Terminal (Thermostat)** controls exactly one liquid or gas element. Build separate terminals to control multiple elements.
+
+- Choose an element in the Config tab and enable temperature control.
+- The target is clamped to the element's stable phase range with a 2 K margin from both phase-change points. Water, for example, can only be set to roughly 2-98 °C, so it will not freeze or boil.
+- Below the target, the heart's internal power is consumed for heating; above the target, the excess heat is converted 100% into internal power.
+- If power is limited, only part of the required heating is applied. Cooling power goes directly into the heart's shared power pool.
+- Elements already assigned to another thermostat on the same heart are not offered again in the selection list.
+
+When a liquid/gas element enters the heart, portions of the same element are merged into one stack with a mass-weighted average temperature instead of being stored as two stacks at different temperatures. For example, 20 °C water plus incoming 50 °C water becomes one water stack at the mass-weighted temperature. Without a thermostat, no active temperature control is performed; only the input-temperature merge happens.
 
 ### Manual bottler / unbottler / loader
 
@@ -324,7 +352,7 @@ For power, all power interfaces are connected through the heart's shared power p
 ## Usage flow
 
 1. **Collect solids**: after building the Heart of Elements, check the solid categories to collect in the material list; duplicants haul them in like a storage bin.
-2. **Configure processing**: build an Element Terminal; it automatically connects to the nearest heart. Select the terminal, and the Config tab lists all valid recipes for that operation (regardless of current heart inventory). Open a recipe detail and set the target amount/rate in the bottom control row. The properties panel shows the current recipe type and connected heart.
+2. **Configure processing**: build an Element Terminal; it automatically connects to the nearest heart. Select the terminal, and the Config tab lists all valid recipes for that operation (regardless of current heart inventory). Open a recipe detail and set the target amount/rate in the bottom control row. For a thermostat, choose one liquid/gas element, enable temperature control, and set the target temperature. The properties panel shows the current recipe type and connected heart.
 3. **Switch targets**: select a terminal, element interface, bottler, unbottler, or loader, then click the heart-name button in the bottom button area to cycle through same-world hearts. The recipe panel refreshes immediately.
 4. **Connect gas/liquid/power**: build gas/liquid input and output interfaces and power interfaces. Input interfaces need no substance selection and automatically accept pipe contents; output interfaces use a single-select filter list. Input interfaces first write to their own buffer and then send to the heart; output interfaces draw directly from the heart.
 5. **Manual bottling/unbottling/loading**: the bottler takes material from the heart and produces bottles/element chunks on demand; the unbottler transfers delivered bottles into the heart; the manual loader transfers solids/items into the heart. Bottler/unbottler use source tags to prevent same-heart loops.
@@ -341,7 +369,7 @@ For power, all power interfaces are connected through the heart's shared power p
 - **Manual Unbottler (Gas)**: HVAC category
 - **Manual Unbottler (Liquid)**: Plumbing category
 - **Manual Loader**: Base category
-- **Element Terminals (Decompose / Solidify / Liquefy / Vaporize)**: Stations category
+- **Element Terminals (Decompose / Solidify / Liquefy / Vaporize / Thermostat)**: Stations category
 
 None of the buildings are added to the tech tree. **No research required; available from the start.**
 
@@ -386,13 +414,13 @@ src/
   ONIHeartMod.cs        Mod entry + build-menu registration
   STRINGS.cs            Chinese text
   HeartConfig.cs        Heart of Elements building config
-  HeartOfElements.cs    Infinite storage / internal power
+  HeartOfElements.cs    Infinite storage / internal power / same-element gas-liquid temperature merge
   HeartSolidCollector.cs  Solid StorageFetch hauling (like a storage bin)
-  HeartProcessor.cs     Four recipe panels: decomposition rate / conversion amount
+  HeartProcessor.cs     Four recipe panels + thermostat processing: decomposition rate / conversion amount / constant temperature
   HeartDeconstructor.cs Preserves contents and clears power on deconstruction
-  HeartProcessUI.cs     Terminal recipe panel (food-press-style list + recipe detail)
-  HeartTerminal.cs      Terminal connection to heart / target selection
-  HeartTerminalConfig.cs Four 2x2 element terminal configs
+  HeartProcessUI.cs     Terminal recipe panel (food-press-style list + recipe detail + thermostat selection)
+  HeartTerminal.cs      Terminal connection to heart / target selection / thermostat element and target
+  HeartTerminalConfig.cs Five 2x2 element terminal configs
   HeartAnimator.cs      Loops the gem-heart animation
   HeartLight.cs         Soft breathing light / color drift
   PortConfigs.cs        Five 1x1 element interface configs
@@ -415,10 +443,12 @@ tools/generate_building_anims.py Regenerates the above building art and packs KA
 - The heart uses a custom `oniheart_kanim`: a folded-heart gem with a continuous rounded lower section (the lower side outline and tip are ground away, with side outline and seams fading out on the lower half), crown facets, a faceted diamond center, sharp edges, and animated rainbow refraction. 16 frames, 6 FPS, loop. The center is not a hole or round table; it is a real polished facet made of an inner diamond and four surrounding kite facets.
 - Element interfaces are solid cast interface bases: square mounting plate, hex bolts, round flange window, top valve connection, pressure gauge, status light, and die-cast flow arrows; gas/liquid/power use teal, blue, and amber respectively, with arrows and indicator lights distinguishing input/output.
 - The manual bottler is a 1x2 vertical bottling machine: riveted cabinet, glass fill chamber, bottle and liquid level, fill arm, pressure gauge, handle, buttons, ventilation grille, and side service pipe.
-- The four element terminals are 2x2 solid science instruments: left reaction chamber (water/ice crystal/condensation/boiling visuals), right metal-framed screen, physical keyboard, knobs, handles, indicator lights, and matching top hardware (dual exhaust pipes / radiator / condenser coil / boiler chimney).
+- The five element terminals are 2x2 solid science instruments: left reaction chamber (water/ice crystal/condensation/boiling/hot-cold split visuals), right metal-framed screen, physical keyboard, knobs, handles, indicator lights, and matching top hardware (dual exhaust pipes / radiator / condenser coil / boiler chimney / hot-cold heat exchanger).
 - All custom building art is painted by `tools/building_art.py` and packed by `tools/generate_building_anims.py`; edit and regenerate `anim/assets/`.
 - The gem heart is generated by `tools/generate_heart_anim.py`; edit the script and regenerate `anim/assets/oniheart/`.
 - Gas/liquid interface output selection uses the vanilla `FilterSideScreen` single-select list; heart switching is unified in the standard button area below the properties panel.
+- The same liquid/gas element is merged into one stack when it enters the heart, with a mass-weighted average temperature; a thermostat then drives that stack to its target temperature.
+- Thermostat targets are clamped inside the element's stable phase range with a 2 K margin from phase-change points, so water cannot be frozen or boiled by the thermostat.
 - Each power interface is a bidirectional battery connection; all power interfaces share the heart's power pool and no longer distinguish input/output buildings.
 - Interface obstacle-ignoring is implemented by assigning each interface kind its own `ObjectLayer`: normal buildings do not block interfaces, and same-kind interfaces share a layer so they cannot stack.
 - Interfaces and bottlers only attach `Filterable`, not `ElementFilter`, avoiding the extra pipe port that `ElementFilter` creates as `ISecondaryOutput`; the filter side screen is adapted with a Harmony patch.

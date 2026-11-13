@@ -38,6 +38,7 @@ ACCENTS = {
     "solidify": (142, 212, 255),
     "liquefy": (90, 170, 255),
     "vaporize": (255, 170, 82),
+    "thermostat": (255, 132, 96),
 }
 
 FONT_PATH = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
@@ -1224,6 +1225,33 @@ def _screen_glyph(img, box, kind: str, accent) -> Image.Image:
                   outline=(220, 250, 255, 170), width=3)
         d.arc([cx - 92, cy + 90, cx + 92, cy + 118], 200, 340,
               fill=(255, 255, 255, 110), width=3)
+    elif kind == "thermostat":
+        # central thermometer with hot/cold flow arrows
+        tx = cx - 36
+        d.rounded_rectangle([tx - 17, cy - 92, tx + 17, cy + 50], radius=17,
+                            fill=(24, 38, 48, 210), outline=(225, 248, 255, 215), width=4)
+        d.rounded_rectangle([tx - 8, cy - 58, tx + 8, cy + 46], radius=8,
+                            fill=(*accent, 225))
+        d.ellipse([tx - 30, cy + 30, tx + 30, cy + 90],
+                  fill=(*mix(accent, (110, 24, 24), 0.32), 235),
+                  outline=(255, 242, 238, 220), width=4)
+        d.ellipse([tx - 16, cy + 42, tx + 16, cy + 78], fill=(255, 168, 140, 240))
+        for k in range(5):
+            y = cy - 70 + k * 22
+            d.line([(tx + 22, y), (tx + 44, y)], fill=(215, 244, 255, 150), width=3)
+        # hot flow (right, upward)
+        hx = cx + 96
+        d.line([(hx, cy + 58), (hx, cy - 56)], fill=(*accent, 220), width=6)
+        d.polygon([(hx - 14, cy - 38), (hx + 14, cy - 38), (hx, cy - 72)],
+                  fill=(*accent, 235))
+        for k in range(3):
+            d.arc([hx - 30 + k * 8, cy - 18, hx + 30 + k * 8, cy + 46],
+                  250, 70, fill=(255, 210, 180, 90 - k * 20), width=4)
+        # cold flow (left of thermometer, downward)
+        cx2 = cx + 12
+        d.line([(cx2, cy - 58), (cx2, cy + 58)], fill=(120, 205, 255, 210), width=5)
+        d.polygon([(cx2 - 12, cy + 42), (cx2 + 12, cy + 42), (cx2, cy + 74)],
+                  fill=(120, 205, 255, 225))
     else:  # vaporize
         # boiling pool with heating coils and rising steam
         d.ellipse([cx - 108, cy + 56, cx + 108, cy + 120],
@@ -1385,6 +1413,39 @@ def terminal_image(kind: str) -> Image.Image:
                              fill=(*mix(accent, (12, 44, 80), 0.35), 235))
         cd.ellipse([202, 632, 380, 668], fill=(160, 215, 250, 230),
                    outline=(230, 250, 255, 190), width=3)
+    elif kind == "thermostat":
+        # cold lower layer, warm upper layer, heat-exchange coils and a thermometer
+        cd.rounded_rectangle([202, 548, 380, 704], radius=18,
+                             fill=(*mix((88, 150, 220), (12, 38, 70), 0.35), 230))
+        cd.ellipse([202, 532, 380, 572], fill=(150, 210, 250, 220),
+                   outline=(228, 248, 255, 190), width=3)
+        warm = new_canvas(S, S)
+        wd = ImageDraw.Draw(warm)
+        wd.ellipse([202, 610, 380, 720], fill=(*mix(accent, (100, 30, 10), 0.35), 190))
+        contents = comp(contents, clip_layer(warm, win_mask))
+        cd = ImageDraw.Draw(contents)
+        for k in range(4):
+            ry = 650 + k * 14
+            cd.arc([212, ry - 8, 370, ry + 8], 200, 340,
+                   fill=(*BRASS_MID, 220), width=6)
+        # thermometer tube
+        tx = 291
+        cd.rounded_rectangle([tx - 14, 408, tx + 14, 606], radius=14,
+                             fill=(18, 30, 40, 210), outline=(225, 248, 255, 210), width=3)
+        cd.rounded_rectangle([tx - 6, 456, tx + 6, 610], radius=6,
+                             fill=(*accent, 230))
+        cd.ellipse([tx - 25, 590, tx + 25, 640],
+                   fill=(*mix(accent, (100, 20, 20), 0.3), 235),
+                   outline=(255, 242, 238, 210), width=3)
+        for k in range(6):
+            y = 424 + k * 26
+            cd.line([(tx + 18, y), (tx + 38, y)], fill=(215, 244, 255, 150), width=2)
+        # hot/cold flow streaks
+        for k in range(3):
+            cd.arc([214 + k * 8, 470, 270 + k * 8, 620],
+                   200, 330, fill=(255, 176, 138, 90 - k * 18), width=4)
+            cd.arc([318 + k * 8, 470, 374 + k * 8, 620],
+                   210, 340, fill=(130, 208, 255, 95 - k * 18), width=4)
     else:  # vaporize
         cd.rounded_rectangle([202, 574, 380, 704], radius=18,
                              fill=(*mix(accent, (90, 36, 10), 0.50), 240))
@@ -1523,7 +1584,8 @@ def terminal_image(kind: str) -> Image.Image:
     d.ellipse([843, 707, 859, 723], fill=(255, 255, 255, 160))
     # engraved name plate
     label = {"decompose": "DECOMPOSE", "solidify": "SOLIDIFY",
-             "liquefy": "LIQUEFY", "vaporize": "VAPORIZE"}[kind]
+             "liquefy": "LIQUEFY", "vaporize": "VAPORIZE",
+             "thermostat": "THERMOSTAT"}[kind]
     img = draw_label(img, (620, 748, 800, 792), label, accent, 261)
     # vents under the deck
     img = draw_vent(img, (530, 756, 600, 796), 3, 262)
@@ -1563,6 +1625,25 @@ def terminal_image(kind: str) -> Image.Image:
                    fill=(*BRASS_MID, 230), width=12)
             dd.arc([190, 100 + k * 18, 390, 192 + k * 18], 200, 340,
                    fill=(*BRASS_LIGHT, 120), width=3)
+    elif kind == "thermostat":
+        # hot/cold heat exchanger with a small radiator matrix
+        img = rounded_panel(img, (166, 108, 414, 224), 24,
+                            (150, 172, 192), (48, 64, 80), 280, bevel=5)
+        dd = ImageDraw.Draw(img)
+        for k in range(4):
+            y = 132 + k * 22
+            dd.line([(188, y), (392, y)], fill=(*INK, 150), width=4)
+            dd.line([(188, y + 3), (392, y + 3)], fill=(*STEEL_HI, 80), width=2)
+        img = draw_pipe(img, 198, 224, 198, 76, 32, 283)
+        img = draw_pipe(img, 382, 224, 382, 76, 32, 284)
+        dd = ImageDraw.Draw(img)
+        dd.ellipse([186, 58, 210, 82], fill=(120, 205, 255, 230),
+                   outline=(*INK, 255), width=2)
+        dd.ellipse([370, 58, 394, 82], fill=(*accent, 230),
+                   outline=(*INK, 255), width=2)
+        for k in range(3):
+            dd.arc([214 + k * 10, 84 - k * 10, 366 + k * 10, 156 - k * 10],
+                   200, 340, fill=(*accent, 110 - k * 25), width=4)
     else:
         # boiler chimney with heat glow
         img = draw_pipe(img, 290, 200, 290, 72, 72, 281)

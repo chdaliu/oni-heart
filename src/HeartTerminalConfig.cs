@@ -92,4 +92,12 @@ namespace ONIHeart
         protected override HeartProcessOperation Operation => HeartProcessOperation.Vaporize;
         protected override string Anim => "oniheart_terminal_vaporize_kanim";
     }
+
+    public sealed class HeartTerminalThermostatConfig : HeartTerminalConfigBase
+    {
+        public const string ID = "ONIHeartTerminalThermostat";
+        protected override string Id => ID;
+        protected override HeartProcessOperation Operation => HeartProcessOperation.Thermostat;
+        protected override string Anim => "oniheart_terminal_thermostat_kanim";
+    }
 }

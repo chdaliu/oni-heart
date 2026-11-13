@@ -175,6 +175,19 @@ namespace ONIHeart
                     public static LocString EFFECT = "控制元素之心的气化\n选择连接的元素之心\n2x2 科学仪器";
                     public static LocString FLAVOR = "\"让沉重的东西飞起来。\"";
                 }
+
+                public static class ONIHEARTTERMINALTHERMOSTAT
+                {
+                    public static LocString NAME = "元素终端机（温控）";
+                    public static LocString DESC =
+                        "2x2 科学仪器。连接一个元素之心后，将其中选定的一种液体或气体元素维持在目标温度。\n\n" +
+                        "每个温控终端只能控制一种元素；需要控制多种元素时，请分别建造终端。\n\n" +
+                        "目标温度会根据元素的相变点自动限制在稳定范围内，例如水只能设在约 2°C ~ 98°C，避免结冰或汽化。\n\n" +
+                        "低于目标温度时消耗元素之心的内部电力加热；高于目标温度时将热量转换为内部电力。";
+                    public static LocString EFFECT =
+                        "控制一种液体/气体恒温\n低温耗电加热\n高温余热发电\n自动限制在相变范围内\n选择连接的元素之心\n2x2 科学仪器";
+                    public static LocString FLAVOR = "\"冷与热，都只是电的另一种写法。\"";
+                }
             }
         }
 
@@ -201,12 +214,37 @@ namespace ONIHeart
                 public static LocString TERMINAL_STATE_IDLE = "待机";
                 public static LocString TERMINAL_STATE_DISCONNECTED = "未连接元素之心";
                 public static LocString TERMINAL_STATE_TOOLTIP =
-                    "运行中表示配方正在处理；等待材料表示已设置了配方，但元素之心里没有对应输入；待机表示已连接但所有配方数量/速率都是 0。";
+                    "运行中表示配方正在处理或温控正在工作；等待材料表示已设置但元素之心里没有对应输入；待机表示已连接但所有配方数量/速率都是 0，或温控已关闭。";
                 public static LocString TERMINAL_NO_HEART = "未连接元素之心";
+
+                public static LocString THERMOSTAT_TOGGLE = "恒温控制";
+                public static LocString THERMOSTAT_TOGGLE_ON = "开启";
+                public static LocString THERMOSTAT_TOGGLE_OFF = "关闭";
+                public static LocString THERMOSTAT_TOGGLE_TOOLTIP = "点击开启或关闭恒温控制。关闭后不再加热或冷却。";
+                public static LocString THERMOSTAT_NOT_SELECTED = "未选择";
+                public static LocString THERMOSTAT_NO_ELEMENTS = "没有可控制的液体/气体元素";
+                public static LocString THERMOSTAT_ELEMENT_ROW_TOOLTIP = "点击选择 {0} 作为这个温控终端的控制元素。";
+                public static LocString THERMOSTAT_ELEMENT_STATUS = "控制元素：{0}";
+                public static LocString THERMOSTAT_ELEMENT_TOOLTIP = "每个温控终端只能控制一种液体或气体元素。";
+                public static LocString THERMOSTAT_STATUS = "温控终端运行中：{0} 个";
+                public static LocString THERMOSTAT_STATUS_TOOLTIP =
+                    "这些温控终端正在把选定的液体/气体元素维持在各自的目标温度。";
+                public static LocString THERMOSTAT_TARGET_STATUS = "目标温度：{0}";
+                public static LocString THERMOSTAT_TARGET_STATUS_TOOLTIP =
+                    "温度低于目标时消耗元素之心内部电力加热；高于目标时将热量转换为内部电力。";
+                public static LocString THERMOSTAT_RANGE_STATUS = "允许范围：{0} ~ {1}";
+                public static LocString THERMOSTAT_RANGE_TOOLTIP =
+                    "目标温度会被限制在元素稳定相区内部，并与相变点保持 2K 余量，避免结冰或汽化。";
+                public static LocString THERMOSTAT_DETAIL_TITLE = "{0} 温控";
+                public static LocString THERMOSTAT_DETAIL = "目标温度：{0}\n当前温度：{1}\n{2}\n{3}";
+                public static LocString THERMOSTAT_DETAIL_RULES =
+                    "低于目标温度消耗内部电力加热；高于目标温度将多余热量转换为内部电力。";
+                public static LocString THERMOSTAT_NO_STOCK = "无库存";
+                public static LocString THERMOSTAT_NO_RANGE = "该元素没有可用的稳定温区";
                 public static LocString STOCK_AMOUNT = "当前库存：{0}";
                 public static LocString CONNECTED_DEVICES = "已连接：{0} 个终端，{1} 个接口，{2} 个装卸建筑";
                 public static LocString CONNECTED_DEVICES_TOOLTIP =
-                    "终端机负责配置分解/固化/液化/气化；接口负责气体、液体和电力输入输出；装瓶/卸瓶/装载器负责手动装卸。";
+                    "终端机负责配置分解/固化/液化/气化/温控；接口负责气体、液体和电力输入输出；装瓶/卸瓶/装载器负责手动装卸。";
                 public static LocString MANUAL_TARGET = "目标：{0}";
                 public static LocString TARGET = "元素之心：{0}";
                 public static LocString TARGET_TOOLTIP = "点击切换连接的元素之心";
@@ -247,11 +285,13 @@ namespace ONIHeart
                 public static LocString MODULE_SOLIDIFY = "固化";
                 public static LocString MODULE_LIQUEFY = "液化";
                 public static LocString MODULE_VAPORIZE = "气化";
+                public static LocString MODULE_THERMOSTAT = "温控";
 
                 public static LocString PANEL_DECOMPOSE = "分解配方";
                 public static LocString PANEL_SOLIDIFY = "固化配方";
                 public static LocString PANEL_LIQUEFY = "液化配方";
                 public static LocString PANEL_VAPORIZE = "气化配方";
+                public static LocString PANEL_THERMOSTAT = "温控设置";
                 public static LocString RECIPE_DECOMPOSE = "{0} → 氧气 + 氢气";
                 public static LocString RECIPE_CONVERSION = "{0} → {1}";
                 public static LocString NO_RECIPES = "暂无可处理的材料";
@@ -265,7 +305,7 @@ namespace ONIHeart
                 public static LocString MASS_STORED_TOOLTIP = "元素之心内部储存的固体、液体与气体总质量。";
                 public static LocString HEART_HELP = "配置：使用元素终端机";
                 public static LocString HEART_HELP_TOOLTIP =
-                    "选中元素终端机后，在“配置”页设置分解/固化/液化/气化配方；点击终端底部按钮区的元素之心名称按钮切换目标。气体、液体和电力由元素接口输入输出。";
+                    "选中元素终端机后，在“配置”页设置分解/固化/液化/气化配方，或为温控终端选择一种元素并设置目标温度；点击终端底部按钮区的元素之心名称按钮切换目标。气体、液体和电力由元素接口输入输出。";
             }
         }
     }

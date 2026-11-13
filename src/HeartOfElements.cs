@@ -14,6 +14,8 @@ namespace ONIHeart
         private float storedJoules;
 
         private Storage storage;
+        private bool mergeDirty;
+        private bool merging;
 
         public Storage Storage => storage;
         public float StoredJoules => storedJoules;
@@ -26,6 +28,8 @@ namespace ONIHeart
             {
                 storage.OnStorageChange += OnStorageChanged;
                 TagAllItems();
+                mergeDirty = true;
+                MergeGasLiquidStacksIfNeeded();
             }
 
             if (!All.Contains(this))
@@ -48,6 +52,18 @@ namespace ONIHeart
         private void OnStorageChanged(GameObject item)
         {
             TagItem(item);
+
+            // Gases/liquids of the same element must be kept as one stack with a mass-weighted
+            // temperature. New items can arrive through pipes, bottles, recipes or vanilla transfers.
+            if (!merging)
+            {
+                PrimaryElement primary = item != null ? item.GetComponent<PrimaryElement>() : null;
+                if (primary != null && primary.Element != null &&
+                    (primary.Element.IsGas || primary.Element.IsLiquid))
+                {
+                    mergeDirty = true;
+                }
+            }
         }
 
         public void TagAllItems()
@@ -77,6 +93,225 @@ namespace ONIHeart
             }
 
             prefabId.AddTag(TagManager.Create("ONIHeartStored_" + GetBottomLeftCell()), true);
+        }
+
+        /// <summary>
+        /// Adds a gas/liquid element into the heart. If the same element is already stored, the two
+        /// portions are merged into one stack and the temperature becomes the mass-weighted average
+        /// instead of keeping two stacks with different temperatures.
+        /// </summary>
+        public PrimaryElement AddElementMerged(SimHashes id, float mass, float temperature,
+                                               byte diseaseIdx, int diseaseCount,
+                                               bool keepZeroMassObject, bool doDiseaseTransfer)
+        {
+            if (storage == null || mass <= 0f)
+            {
+                return null;
+            }
+
+            Element element = ElementLoader.GetElement(id.CreateTag());
+            if (element == null || (!element.IsGas && !element.IsLiquid))
+            {
+                return storage.AddElement(id, mass, temperature, diseaseIdx, diseaseCount,
+                                          keepZeroMassObject, doDiseaseTransfer);
+            }
+
+            GameObject existingObject = FindStack(id);
+            if (existingObject == null)
+            {
+                PrimaryElement added = storage.AddElement(id, mass, temperature, diseaseIdx, diseaseCount,
+                                                          keepZeroMassObject, doDiseaseTransfer);
+                mergeDirty = false;
+                return added;
+            }
+
+            PrimaryElement existing = existingObject.GetComponent<PrimaryElement>();
+            if (existing == null)
+            {
+                PrimaryElement added = storage.AddElement(id, mass, temperature, diseaseIdx, diseaseCount,
+                                                          keepZeroMassObject, doDiseaseTransfer);
+                mergeDirty = false;
+                return added;
+            }
+
+            double totalMass = (double)existing.Mass + mass;
+            if (totalMass <= 0d)
+            {
+                return existing;
+            }
+
+            float mergedTemperature = (float)(
+                ((double)existing.Mass * existing.Temperature + (double)mass * temperature) / totalMass);
+            merging = true;
+            existing.SetMassTemperature((float)Math.Min(float.MaxValue, totalMass), mergedTemperature);
+            if (diseaseCount > 0 &&
+                (existing.DiseaseCount <= 0 || existing.DiseaseIdx == diseaseIdx))
+            {
+                existing.AddDisease(diseaseIdx, diseaseCount, "ONIHeart temperature merge");
+            }
+            merging = false;
+            mergeDirty = false;
+            return existing;
+        }
+
+        /// <summary>Moves every item from a source Storage into the heart, merging gas/liquid elements by temperature.</summary>
+        public void AbsorbStorage(Storage source)
+        {
+            if (storage == null || source == null || source.items == null)
+            {
+                return;
+            }
+
+            List<GameObject> items = new List<GameObject>(source.items);
+            for (int i = 0; i < items.Count; i++)
+            {
+                GameObject item = items[i];
+                if (item == null)
+                {
+                    continue;
+                }
+
+                PrimaryElement primary = item.GetComponent<PrimaryElement>();
+                if (primary == null)
+                {
+                    continue;
+                }
+
+                if (primary.Mass <= 0f)
+                {
+                    source.ConsumeIgnoringDisease(item);
+                    continue;
+                }
+
+                Element element = primary.Element;
+                if (element != null && (element.IsGas || element.IsLiquid))
+                {
+                    PrimaryElement added = AddElementMerged(
+                        element.id, primary.Mass, primary.Temperature,
+                        primary.DiseaseIdx, primary.DiseaseCount, false, true);
+                    if (added != null)
+                    {
+                        source.ConsumeIgnoringDisease(item);
+                    }
+                }
+                else
+                {
+                    // Solid items keep their own identity and are simply stored.
+                    storage.Store(item);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Normalizes loaded saves and any storage changes: one gas/liquid stack per element,
+        /// with a mass-weighted average temperature.
+        /// </summary>
+        public void MergeGasLiquidStacksIfNeeded()
+        {
+            if (!mergeDirty || storage == null || storage.items == null)
+            {
+                return;
+            }
+
+            mergeDirty = false;
+            merging = true;
+            try
+            {
+                Dictionary<SimHashes, PrimaryElement> byElement = new Dictionary<SimHashes, PrimaryElement>();
+                List<GameObject> items = new List<GameObject>(storage.items);
+                for (int i = 0; i < items.Count; i++)
+                {
+                    GameObject item = items[i];
+                    PrimaryElement primary = item != null ? item.GetComponent<PrimaryElement>() : null;
+                    if (primary == null || primary.Mass <= 0f)
+                    {
+                        continue;
+                    }
+
+                    Element element = primary.Element;
+                    if (element == null || (!element.IsGas && !element.IsLiquid))
+                    {
+                        continue;
+                    }
+
+                    PrimaryElement existing;
+                    if (!byElement.TryGetValue(element.id, out existing) || existing == null)
+                    {
+                        byElement[element.id] = primary;
+                        continue;
+                    }
+
+                    double totalMass = (double)existing.Mass + primary.Mass;
+                    if (totalMass <= 0d)
+                    {
+                        continue;
+                    }
+
+                    float mergedTemperature = (float)(
+                        ((double)existing.Mass * existing.Temperature +
+                         (double)primary.Mass * primary.Temperature) / totalMass);
+                    existing.SetMassTemperature((float)Math.Min(float.MaxValue, totalMass), mergedTemperature);
+                    if (primary.DiseaseCount > 0 &&
+                        (existing.DiseaseCount <= 0 || existing.DiseaseIdx == primary.DiseaseIdx))
+                    {
+                        existing.AddDisease(primary.DiseaseIdx, primary.DiseaseCount,
+                                            "ONIHeart temperature merge");
+                    }
+
+                    storage.ConsumeIgnoringDisease(item);
+                }
+            }
+            finally
+            {
+                merging = false;
+                mergeDirty = false;
+            }
+        }
+
+        private GameObject FindStack(SimHashes id)
+        {
+            if (storage == null || storage.items == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < storage.items.Count; i++)
+            {
+                GameObject item = storage.items[i];
+                PrimaryElement primary = item != null ? item.GetComponent<PrimaryElement>() : null;
+                if (primary != null && primary.Mass > 0f && primary.Element != null &&
+                    primary.Element.id == id)
+                {
+                    return item;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Mass-weighted temperature of a stored element, or 0 when it is not present.</summary>
+        public float GetStoredTemperature(Tag tag)
+        {
+            if (storage == null || storage.items == null || !tag.IsValid)
+            {
+                return 0f;
+            }
+
+            double totalMass = 0d;
+            double weighted = 0d;
+            for (int i = 0; i < storage.items.Count; i++)
+            {
+                GameObject item = storage.items[i];
+                PrimaryElement primary = item != null ? item.GetComponent<PrimaryElement>() : null;
+                if (primary != null && primary.Element != null && primary.Element.tag == tag &&
+                    primary.Mass > 0f)
+                {
+                    totalMass += primary.Mass;
+                    weighted += (double)primary.Mass * primary.Temperature;
+                }
+            }
+
+            return totalMass > 0d ? (float)(weighted / totalMass) : 0f;
         }
 
         public int GetBottomLeftCell()

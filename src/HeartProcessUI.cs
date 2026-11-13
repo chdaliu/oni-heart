@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,12 +10,20 @@ namespace ONIHeart
     /// <summary>Terminal recipe panel: food-press-style recipe rows (icon + name + current quantity/rate); amounts are adjusted in the recipe detail panel.</summary>
     public sealed class HeartRecipePanel : KMonoBehaviour
     {
+        private enum RowKind
+        {
+            Recipe,
+            ThermostatToggle,
+            ThermostatElement
+        }
+
         private sealed class RowBinding
         {
             public GameObject row;
             public Tag element;
             public bool isRate;
             public LocText countLabel;
+            public RowKind kind;
         }
 
         public RectTransform content;
@@ -84,6 +93,11 @@ namespace ONIHeart
                 return new List<Tag>();
             }
 
+            if (operation == HeartProcessOperation.Thermostat)
+            {
+                return processor.GetThermostatCandidates(terminal);
+            }
+
             if (operation == HeartProcessOperation.Decompose)
             {
                 return new List<Tag> { SimHashes.Water.CreateTag() };
@@ -106,6 +120,13 @@ namespace ONIHeart
             {
                 builder.Append('|');
                 builder.Append((int)inputs[i].GetHash());
+            }
+
+            if (operation == HeartProcessOperation.Thermostat && terminal != null)
+            {
+                builder.Append("|selected:");
+                builder.Append((int)terminal.thermostatElement);
+                builder.Append(terminal.thermostatEnabled ? "|on" : "|off");
             }
 
             return builder.ToString();
@@ -148,6 +169,13 @@ namespace ONIHeart
                 return;
             }
 
+            if (operation == HeartProcessOperation.Thermostat)
+            {
+                RebuildThermostat();
+                signature = ComputeSignature();
+                return;
+            }
+
             List<Tag> inputs = GetInputs();
             if (operation == HeartProcessOperation.Decompose)
             {
@@ -182,33 +210,141 @@ namespace ONIHeart
             rows.Clear();
         }
 
-        private void CreateRowForElement(Tag element, bool isRate)
+        private void RebuildThermostat()
         {
-            Element inputElement = ElementLoader.GetElement(element);
-            string inputName = inputElement != null ? inputElement.name : element.ProperName();
-            string label = processor != null ? processor.GetRecipeName(operation, element) : inputName;
-            string stock = processor != null
-                ? GameUtil.GetFormattedMass(processor.GetStoredMass(element))
-                : GameUtil.GetFormattedMass(0f);
-            string tooltip = label + "\n" +
-                string.Format(STRINGS.UI.ONIHEART.STOCK_AMOUNT, stock) + "\n" +
-                STRINGS.UI.ONIHEART.RECIPE_ROW_TOOLTIP;
-
-            GameObject row = CreateRow(label, tooltip, false);
-
-            Image icon = row.transform.Find("Button/ToIcons/ToIcon") != null
-                ? row.transform.Find("Button/ToIcons/ToIcon").GetComponent<Image>()
-                : null;
-            if (icon != null)
+            GameObject toggleRow = CreateRow(
+                STRINGS.UI.ONIHEART.THERMOSTAT_TOGGLE,
+                STRINGS.UI.ONIHEART.THERMOSTAT_TOGGLE_TOOLTIP,
+                false);
+            if (toggleRow != null)
             {
-                var sprite = Def.GetUISprite(element);
-                if (sprite != null)
+                HideChild(toggleRow, "Button/ToIcons/ToIcon");
+                RowBinding toggleBinding = new RowBinding
                 {
-                    icon.sprite = sprite.first;
-                    icon.color = sprite.second;
-                }
+                    row = toggleRow,
+                    countLabel = GetCountLabel(toggleRow),
+                    kind = RowKind.ThermostatToggle
+                };
+                rows.Add(toggleBinding);
+                RegisterRowClick(toggleRow, toggleBinding);
+                UpdateCount(toggleBinding);
             }
 
+            List<Tag> inputs = GetInputs();
+            if (inputs.Count == 0)
+            {
+                rows.Add(new RowBinding
+                {
+                    row = CreateRow(STRINGS.UI.ONIHEART.THERMOSTAT_NO_ELEMENTS, null, true),
+                    kind = RowKind.Recipe
+                });
+                return;
+            }
+
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                CreateThermostatElementRow(inputs[i]);
+            }
+        }
+
+        private void CreateThermostatElementRow(Tag elementTag)
+        {
+            Element element = ElementLoader.GetElement(elementTag);
+            string elementName = element != null ? element.name : elementTag.ProperName();
+
+            GameObject row = CreateRow(
+                elementName,
+                string.Format(STRINGS.UI.ONIHEART.THERMOSTAT_ELEMENT_ROW_TOOLTIP, elementName),
+                false);
+            if (row == null)
+            {
+                return;
+            }
+
+            SetRowIcon(row, elementTag);
+            RowBinding binding = new RowBinding
+            {
+                row = row,
+                element = elementTag,
+                countLabel = GetCountLabel(row),
+                kind = RowKind.ThermostatElement
+            };
+            rows.Add(binding);
+
+            HideChild(row, "Queue/IncButton");
+            HideChild(row, "Queue/DecButton");
+            HideChild(row, "Queue/TechRequired");
+            HideChild(row, "Queue/Infinite");
+            RegisterRowClick(row, binding);
+            UpdateCount(binding);
+        }
+
+        private void RegisterRowClick(GameObject row, RowBinding binding)
+        {
+            KToggle toggle = row.GetComponent<KToggle>();
+            if (toggle != null)
+            {
+                toggle.onClick += delegate { OnRowClicked(binding); };
+            }
+
+            HierarchyReferences references = row.GetComponent<HierarchyReferences>();
+            if (references != null && references.HasReference("QueueBoxButton"))
+            {
+                KButton queueBox = references.GetReference<KButton>("QueueBoxButton");
+                if (queueBox != null)
+                {
+                    queueBox.onClick += delegate { OnRowClicked(binding); };
+                }
+            }
+        }
+
+        private void OnRowClicked(RowBinding binding)
+        {
+            if (binding == null)
+            {
+                return;
+            }
+
+            if (binding.kind == RowKind.ThermostatToggle)
+            {
+                ToggleThermostat();
+                return;
+            }
+
+            if (binding.kind == RowKind.ThermostatElement)
+            {
+                SelectThermostatElement(binding);
+                return;
+            }
+
+            OpenDetail(binding);
+        }
+
+        private void ToggleThermostat()
+        {
+            if (terminal == null)
+            {
+                return;
+            }
+
+            terminal.SetThermostatEnabled(!terminal.thermostatEnabled);
+            RefreshCounts();
+        }
+
+        private void SelectThermostatElement(RowBinding binding)
+        {
+            if (terminal == null || binding == null)
+            {
+                return;
+            }
+
+            terminal.SetThermostatElement(binding.element);
+            RefreshCounts();
+            OpenDetail(binding);
+        }
+
+        private LocText GetCountLabel(GameObject row)
+        {
             LocText countLabel = null;
             HierarchyReferences references = row.GetComponent<HierarchyReferences>();
             if (references != null)
@@ -224,12 +360,49 @@ namespace ONIHeart
                 countLabel = row.transform.Find("Queue/Box/label/x").GetComponent<LocText>();
             }
 
+            return countLabel;
+        }
+
+        private static void SetRowIcon(GameObject row, Tag element)
+        {
+            Image icon = row.transform.Find("Button/ToIcons/ToIcon") != null
+                ? row.transform.Find("Button/ToIcons/ToIcon").GetComponent<Image>()
+                : null;
+            if (icon == null)
+            {
+                return;
+            }
+
+            var sprite = Def.GetUISprite(element);
+            if (sprite != null)
+            {
+                icon.sprite = sprite.first;
+                icon.color = sprite.second;
+            }
+        }
+
+        private void CreateRowForElement(Tag element, bool isRate)
+        {
+            Element inputElement = ElementLoader.GetElement(element);
+            string inputName = inputElement != null ? inputElement.name : element.ProperName();
+            string label = processor != null ? processor.GetRecipeName(operation, element) : inputName;
+            string stock = processor != null
+                ? GameUtil.GetFormattedMass(processor.GetStoredMass(element))
+                : GameUtil.GetFormattedMass(0f);
+            string tooltip = label + "\n" +
+                string.Format(STRINGS.UI.ONIHEART.STOCK_AMOUNT, stock) + "\n" +
+                STRINGS.UI.ONIHEART.RECIPE_ROW_TOOLTIP;
+
+            GameObject row = CreateRow(label, tooltip, false);
+            SetRowIcon(row, element);
+
             RowBinding binding = new RowBinding
             {
                 row = row,
                 element = element,
                 isRate = isRate,
-                countLabel = countLabel
+                countLabel = GetCountLabel(row),
+                kind = RowKind.Recipe
             };
             rows.Add(binding);
 
@@ -237,24 +410,9 @@ namespace ONIHeart
             // Keep this consistent with the food press recipe detail page.
             HideChild(row, "Queue/IncButton");
             HideChild(row, "Queue/DecButton");
-
-            KToggle toggle = row.GetComponent<KToggle>();
-            if (toggle != null)
-            {
-                toggle.onClick += delegate { OpenDetail(binding); };
-            }
-
-            if (references != null && references.HasReference("QueueBoxButton"))
-            {
-                KButton queueBox = references.GetReference<KButton>("QueueBoxButton");
-                if (queueBox != null)
-                {
-                    queueBox.onClick += delegate { OpenDetail(binding); };
-                }
-            }
-
             HideChild(row, "Queue/TechRequired");
             HideChild(row, "Queue/Infinite");
+            RegisterRowClick(row, binding);
             UpdateCount(binding);
         }
 
@@ -325,11 +483,21 @@ namespace ONIHeart
                 return;
             }
 
-            KScreen screen = DetailsScreen.Instance.SetSecondarySideScreen(detailPrefab, STRINGS.UI.ONIHEART.RECIPE_DETAIL_TITLE);
+            string detailTitle = binding.kind == RowKind.ThermostatElement
+                ? STRINGS.UI.ONIHEART.PANEL_THERMOSTAT
+                : STRINGS.UI.ONIHEART.RECIPE_DETAIL_TITLE;
+            KScreen screen = DetailsScreen.Instance.SetSecondarySideScreen(detailPrefab, detailTitle);
             HeartRecipeDetailScreen detail = screen != null ? screen.GetComponent<HeartRecipeDetailScreen>() : null;
             if (detail != null)
             {
-                detail.SetRecipe(processor, operation, binding.element, binding.isRate);
+                if (binding.kind == RowKind.ThermostatElement)
+                {
+                    detail.SetThermostat(terminal);
+                }
+                else
+                {
+                    detail.SetRecipe(processor, operation, binding.element, binding.isRate);
+                }
             }
             else
             {
@@ -347,7 +515,37 @@ namespace ONIHeart
 
         private void UpdateCount(RowBinding binding)
         {
-            if (binding == null || binding.countLabel == null || processor == null)
+            if (binding == null || binding.countLabel == null)
+            {
+                return;
+            }
+
+            if (binding.kind == RowKind.ThermostatToggle)
+            {
+                binding.countLabel.text = terminal != null && terminal.thermostatEnabled
+                    ? STRINGS.UI.ONIHEART.THERMOSTAT_TOGGLE_ON
+                    : STRINGS.UI.ONIHEART.THERMOSTAT_TOGGLE_OFF;
+                return;
+            }
+
+            if (binding.kind == RowKind.ThermostatElement)
+            {
+                if (terminal == null)
+                {
+                    binding.countLabel.text = STRINGS.UI.ONIHEART.THERMOSTAT_NOT_SELECTED;
+                }
+                else if (terminal.thermostatElement == ElementLoader.GetElementID(binding.element))
+                {
+                    binding.countLabel.text = FormatCelsius(terminal.ThermostatTargetCelsius);
+                }
+                else
+                {
+                    binding.countLabel.text = STRINGS.UI.ONIHEART.THERMOSTAT_NOT_SELECTED;
+                }
+                return;
+            }
+
+            if (processor == null)
             {
                 return;
             }
@@ -357,6 +555,11 @@ namespace ONIHeart
                 : processor.GetPending(operation, binding.element);
             binding.countLabel.text = value.ToString("0.##");
         }
+
+        private static string FormatCelsius(float celsius)
+        {
+            return celsius.ToString("0.#") + " °C";
+        }
     }
 
     /// <summary>Left "recipe detail" panel: shows the selected recipe and controls rate/amount.</summary>
@@ -365,6 +568,7 @@ namespace ONIHeart
         private Image icon;
         private LocText titleLabel;
         private LocText descriptionLabel;
+        private LocText subtitleLabel;
         private KNumberInputField amountInput;
         private MultiToggle decrement;
         private MultiToggle increment;
@@ -375,6 +579,8 @@ namespace ONIHeart
         private HeartProcessOperation operation;
         private Tag element;
         private bool isRate;
+        private bool isTemperature;
+        private HeartTerminal thermostatTerminal;
         private float nextRefreshTime;
 
         protected override void OnSpawn()
@@ -399,8 +605,9 @@ namespace ONIHeart
             }
 
             // When the recipe detail is open, the target amount may decrease after processing; sync it when not editing.
-            if (processor == null || amountInput == null || amountInput.field == null ||
-                amountInput.field.isFocused || Time.unscaledTime < nextRefreshTime)
+            if ((processor == null && thermostatTerminal == null) || amountInput == null ||
+                amountInput.field == null || amountInput.field.isFocused ||
+                Time.unscaledTime < nextRefreshTime)
             {
                 return;
             }
@@ -419,6 +626,23 @@ namespace ONIHeart
             this.operation = operation;
             this.element = element;
             this.isRate = isRate;
+            this.isTemperature = false;
+            this.thermostatTerminal = null;
+            InitializeUI();
+            HideVanillaRecipeSections();
+            Refresh();
+        }
+
+        public void SetThermostat(HeartTerminal terminal)
+        {
+            this.thermostatTerminal = terminal;
+            this.processor = terminal != null ? terminal.Processor : null;
+            this.operation = HeartProcessOperation.Thermostat;
+            this.element = terminal != null && terminal.thermostatElement != SimHashes.Vacuum
+                ? terminal.thermostatElement.CreateTag()
+                : Tag.Invalid;
+            this.isRate = false;
+            this.isTemperature = true;
             InitializeUI();
             HideVanillaRecipeSections();
             Refresh();
@@ -525,10 +749,10 @@ namespace ONIHeart
             Transform subtitle = transform.Find("ControlsTitlebar/SubtitleText");
             if (subtitle != null)
             {
-                LocText label = subtitle.GetComponent<LocText>();
-                if (label != null)
+                subtitleLabel = subtitle.GetComponent<LocText>();
+                if (subtitleLabel != null)
                 {
-                    label.text = STRINGS.UI.ONIHEART.RECIPE_DETAIL_TITLE;
+                    subtitleLabel.text = STRINGS.UI.ONIHEART.RECIPE_DETAIL_TITLE;
                 }
             }
 
@@ -678,13 +902,25 @@ namespace ONIHeart
 
         private void Refresh()
         {
+            if (isTemperature)
+            {
+                RefreshThermostat();
+                return;
+            }
+
             if (processor == null)
             {
                 return;
             }
 
+            if (subtitleLabel != null)
+            {
+                subtitleLabel.text = STRINGS.UI.ONIHEART.RECIPE_DETAIL_TITLE;
+            }
+
             if (icon != null)
             {
+                icon.gameObject.SetActive(true);
                 var sprite = Def.GetUISprite(element);
                 if (sprite != null)
                 {
@@ -718,8 +954,110 @@ namespace ONIHeart
             }
         }
 
+        private void RefreshThermostat()
+        {
+            if (thermostatTerminal == null)
+            {
+                return;
+            }
+
+            if (subtitleLabel != null)
+            {
+                subtitleLabel.text = STRINGS.UI.ONIHEART.PANEL_THERMOSTAT;
+            }
+
+            Element selectedElement = thermostatTerminal.thermostatElement != SimHashes.Vacuum
+                ? ElementLoader.GetElement(thermostatTerminal.thermostatElement.CreateTag())
+                : null;
+            string elementName = selectedElement != null
+                ? selectedElement.name
+                : STRINGS.UI.ONIHEART.NO_SUBSTANCE;
+            string target = FormatCelsius(thermostatTerminal.ThermostatTargetCelsius);
+
+            if (icon != null)
+            {
+                icon.gameObject.SetActive(selectedElement != null);
+                if (selectedElement != null)
+                {
+                    var sprite = Def.GetUISprite(selectedElement.tag);
+                    if (sprite != null)
+                    {
+                        icon.sprite = sprite.first;
+                        icon.color = sprite.second;
+                    }
+                }
+            }
+
+            if (titleLabel != null)
+            {
+                titleLabel.text = string.Format(STRINGS.UI.ONIHEART.THERMOSTAT_DETAIL_TITLE, elementName);
+            }
+
+            if (descriptionLabel != null)
+            {
+                float current = processor != null && selectedElement != null
+                    ? processor.GetStoredTemperature(selectedElement.tag)
+                    : 0f;
+                string currentText = current > 0f
+                    ? FormatCelsius(current - 273.15f)
+                    : STRINGS.UI.ONIHEART.THERMOSTAT_NO_STOCK;
+                string rangeText;
+                float minCelsius;
+                float maxCelsius;
+                if (thermostatTerminal.TryGetThermostatRange(out minCelsius, out maxCelsius))
+                {
+                    rangeText = string.Format(STRINGS.UI.ONIHEART.THERMOSTAT_RANGE_STATUS,
+                        FormatCelsius(minCelsius), FormatCelsius(maxCelsius));
+                }
+                else
+                {
+                    rangeText = STRINGS.UI.ONIHEART.THERMOSTAT_NO_RANGE;
+                }
+
+                string rules = STRINGS.UI.ONIHEART.THERMOSTAT_DETAIL_RULES;
+                descriptionLabel.text = string.Format(
+                    STRINGS.UI.ONIHEART.THERMOSTAT_DETAIL,
+                    target,
+                    currentText,
+                    rangeText,
+                    rules);
+            }
+
+            if (amountInput != null)
+            {
+                float minCelsius;
+                float maxCelsius;
+                if (thermostatTerminal.TryGetThermostatRange(out minCelsius, out maxCelsius))
+                {
+                    amountInput.minValue = minCelsius;
+                    amountInput.maxValue = maxCelsius;
+                }
+                else
+                {
+                    amountInput.minValue = -273f;
+                    amountInput.maxValue = 1000f;
+                }
+
+                amountInput.decimalPlaces = 1;
+                amountInput.field.characterValidation = TMP_InputField.CharacterValidation.Decimal;
+                amountInput.Activate();
+                amountInput.SetAmount(GetValue());
+                amountInput.field.characterLimit = 10;
+            }
+        }
+
+        private static string FormatCelsius(float celsius)
+        {
+            return celsius.ToString("0.#") + " °C";
+        }
+
         private float GetValue()
         {
+            if (isTemperature)
+            {
+                return thermostatTerminal != null ? thermostatTerminal.ThermostatTargetCelsius : 0f;
+            }
+
             if (processor == null)
             {
                 return 0f;
@@ -728,10 +1066,32 @@ namespace ONIHeart
             return isRate ? processor.DecomposeRate : processor.GetPending(operation, element);
         }
 
-        private float GetStep() => isRate ? 0.5f : 10f;
+        private float GetStep() => isTemperature ? 1f : (isRate ? 0.5f : 10f);
 
         private void ApplyValue(float value)
         {
+            if (isTemperature)
+            {
+                if (thermostatTerminal == null)
+                {
+                    return;
+                }
+
+                float minCelsius;
+                float maxCelsius;
+                if (thermostatTerminal.TryGetThermostatRange(out minCelsius, out maxCelsius))
+                {
+                    value = Mathf.Clamp(value, minCelsius, maxCelsius);
+                }
+
+                thermostatTerminal.SetThermostatTargetCelsius(value);
+                if (amountInput != null)
+                {
+                    amountInput.SetAmount(value);
+                }
+                return;
+            }
+
             if (processor == null)
             {
                 return;
@@ -986,6 +1346,8 @@ namespace ONIHeart
                     return STRINGS.UI.ONIHEART.PANEL_SOLIDIFY;
                 case HeartProcessOperation.Liquefy:
                     return STRINGS.UI.ONIHEART.PANEL_LIQUEFY;
+                case HeartProcessOperation.Thermostat:
+                    return STRINGS.UI.ONIHEART.PANEL_THERMOSTAT;
                 default:
                     return STRINGS.UI.ONIHEART.PANEL_VAPORIZE;
             }

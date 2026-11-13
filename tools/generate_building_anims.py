@@ -218,6 +218,7 @@ def main():
         "oniheart_terminal_solidify": ("oniheart_terminal_solidify", "solidify"),
         "oniheart_terminal_liquefy": ("oniheart_terminal_liquefy", "liquefy"),
         "oniheart_terminal_vaporize": ("oniheart_terminal_vaporize", "vaporize"),
+        "oniheart_terminal_thermostat": ("oniheart_terminal_thermostat", "thermostat"),
     }
     for folder, (name, kind) in terminal_specs.items():
         world = terminal_image(kind).resize((512, 512), Image.LANCZOS)
@@ -243,6 +244,7 @@ def main():
             ("solidify", ASSETS / "oniheart_terminal_solidify" / "oniheart_terminal_solidify_0.png", 512),
             ("liquefy", ASSETS / "oniheart_terminal_liquefy" / "oniheart_terminal_liquefy_0.png", 512),
             ("vaporize", ASSETS / "oniheart_terminal_vaporize" / "oniheart_terminal_vaporize_0.png", 512),
+            ("thermostat", ASSETS / "oniheart_terminal_thermostat" / "oniheart_terminal_thermostat_0.png", 512),
         ],
         ROOT / "tools" / "building_anims_preview.png",
     )

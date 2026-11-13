@@ -39,7 +39,9 @@ namespace ONIHeart
                 return;
             }
 
-            source.Transfer(heart.Storage, block_events: false, hide_popups: true);
+            // Merge into the heart's existing gas/liquid stacks so input temperatures are
+            // averaged by mass instead of creating a second stack of the same element.
+            heart.AbsorbStorage(source);
         }
     }
 }
