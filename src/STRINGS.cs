@@ -180,12 +180,12 @@ namespace ONIHeart
                 {
                     public static LocString NAME = "元素终端机（温控）";
                     public static LocString DESC =
-                        "2x2 科学仪器。连接一个元素之心后，将其中选定的一种液体或气体元素维持在目标温度。\n\n" +
-                        "每个温控终端只能控制一种元素；需要控制多种元素时，请分别建造终端。\n\n" +
+                        "2x2 科学仪器。连接一个元素之心后，将其中选定的多种液体或气体元素分别维持在各自的目标温度。\n\n" +
+                        "同一个温控终端可以同时控制多种元素，每种元素都有独立的目标温度和开关。\n\n" +
                         "目标温度会根据元素的相变点自动限制在稳定范围内，例如水只能设在约 2°C ~ 98°C，避免结冰或汽化。\n\n" +
                         "低于目标温度时消耗元素之心的内部电力加热；高于目标温度时将热量转换为内部电力。";
                     public static LocString EFFECT =
-                        "控制一种液体/气体恒温\n低温耗电加热\n高温余热发电\n自动限制在相变范围内\n选择连接的元素之心\n2x2 科学仪器";
+                        "同时控制多种液体/气体恒温\n每种元素独立开关与温度\n低温耗电加热\n高温余热发电\n自动限制在相变范围内\n选择连接的元素之心\n2x2 科学仪器";
                     public static LocString FLAVOR = "\"冷与热，都只是电的另一种写法。\"";
                 }
             }
@@ -220,13 +220,16 @@ namespace ONIHeart
                 public static LocString THERMOSTAT_TOGGLE = "恒温控制";
                 public static LocString THERMOSTAT_TOGGLE_ON = "开启";
                 public static LocString THERMOSTAT_TOGGLE_OFF = "关闭";
-                public static LocString THERMOSTAT_TOGGLE_TOOLTIP = "点击开启或关闭恒温控制。关闭后不再加热或冷却。";
+                public static LocString THERMOSTAT_TOGGLE_TOOLTIP = "点击开启或关闭这个元素的恒温控制。关闭后不再加热或冷却。";
+                public static LocString THERMOSTAT_TOGGLE_STATUS = "恒温控制：{0}";
                 public static LocString THERMOSTAT_NOT_SELECTED = "未选择";
+                public static LocString THERMOSTAT_NOT_ENABLED = "未启用";
                 public static LocString THERMOSTAT_NO_ELEMENTS = "没有可控制的液体/气体元素";
-                public static LocString THERMOSTAT_ELEMENT_ROW_TOOLTIP = "点击选择 {0} 作为这个温控终端的控制元素。";
-                public static LocString THERMOSTAT_ELEMENT_STATUS = "控制元素：{0}";
-                public static LocString THERMOSTAT_ELEMENT_TOOLTIP = "每个温控终端只能控制一种液体或气体元素。";
-                public static LocString THERMOSTAT_STATUS = "温控终端运行中：{0} 个";
+                public static LocString THERMOSTAT_ELEMENT_ROW_TOOLTIP = "点击打开 {0} 的温控详情，可单独设置目标温度并开启恒温。";
+                public static LocString THERMOSTAT_ELEMENT_STATUS = "恒温元素：{0}";
+                public static LocString THERMOSTAT_ELEMENT_TARGET = "{0}（{1}，{2}）";
+                public static LocString THERMOSTAT_ELEMENT_TOOLTIP = "同一个温控终端可以同时控制多种液体或气体元素，每种元素有独立的目标温度与开关。";
+                public static LocString THERMOSTAT_STATUS = "温控运行中：{0} 种元素";
                 public static LocString THERMOSTAT_STATUS_TOOLTIP =
                     "这些温控终端正在把选定的液体/气体元素维持在各自的目标温度。";
                 public static LocString THERMOSTAT_TARGET_STATUS = "目标温度：{0}";
@@ -241,6 +244,9 @@ namespace ONIHeart
                     "低于目标温度消耗内部电力加热；高于目标温度将多余热量转换为内部电力。";
                 public static LocString THERMOSTAT_NO_STOCK = "无库存";
                 public static LocString THERMOSTAT_NO_RANGE = "该元素没有可用的稳定温区";
+                public static LocString THERMOSTAT_SLIDER_VALUE = "目标温度：{0}";
+                public static LocString DECOMPOSE_RATE_VALUE = "速率：{0} kg/s";
+                public static LocString CONVERSION_AMOUNT_VALUE = "目标数量：{0} kg";
                 public static LocString STOCK_AMOUNT = "当前库存：{0}";
                 public static LocString CONNECTED_DEVICES = "已连接：{0} 个终端，{1} 个接口，{2} 个装卸建筑";
                 public static LocString CONNECTED_DEVICES_TOOLTIP =
@@ -278,8 +284,14 @@ namespace ONIHeart
                 public static LocString PROCESS_STATUS_OFF = "所有配方均已关闭";
                 public static LocString PROCESS_STATUS_TOOLTIP =
                     "分解水：按设定速率处理，1kg/s 水 → 0.888kg/s 氧气 + 0.112kg/s 氢气，耗电 120W，反应热 1.25kW 直接转为电力。\n" +
-                    "固化/液化/气化：按元素相变温度处理，输出温度落在稳定一侧；不与环境交换热量，放热转为电力，吸热消耗电力。\n" +
+                    "固化/液化/气化：只处理同一纯物质的相变，按源元素实际跨越的相变点计算输出温度；不与环境交换热量，放热转为电力，吸热消耗电力。\n" +
+                    "燃烧、氧化、精炼、冶炼、裂化以及溶液/混合物不会进入转化配方列表。\n" +
+                    "配方只显示已经出现过的输入材料；未遇到的材料会在第一次出现后解锁。\n" +
                     "四个配方面板相互独立，可以同时运行；所有产物自动存入元素之心内部。";
+
+                public static LocString PHASE_ONLY_STATUS = "配方范围：同一纯物质相变";
+                public static LocString PHASE_ONLY_TOOLTIP =
+                    "只显示同一纯物质、且输入材料已经出现过的固/液/气相变。燃烧、氧化、精炼、裂化、冶炼、矿石加工、聚合/分解，以及需要过滤/净化的溶液和混合物都不会出现在配方列表中。";
 
                 public static LocString MODULE_DECOMPOSE = "分解";
                 public static LocString MODULE_SOLIDIFY = "固化";
@@ -294,7 +306,7 @@ namespace ONIHeart
                 public static LocString PANEL_THERMOSTAT = "温控设置";
                 public static LocString RECIPE_DECOMPOSE = "{0} → 氧气 + 氢气";
                 public static LocString RECIPE_CONVERSION = "{0} → {1}";
-                public static LocString NO_RECIPES = "暂无可处理的材料";
+                public static LocString NO_RECIPES = "暂无可处理的材料（配方会随材料出现而解锁）";
                 public static LocString RECIPE_DETAIL_TITLE = "配方详情";
                 public static LocString RECIPE_ROW_TOOLTIP = "点击打开配方详情，调整数量/速率";
                 public static LocString DECOMPOSE_RATE_TOOLTIP = "在此输入或调整分解速率（kg/s）；0 表示不工作";
@@ -305,7 +317,7 @@ namespace ONIHeart
                 public static LocString MASS_STORED_TOOLTIP = "元素之心内部储存的固体、液体与气体总质量。";
                 public static LocString HEART_HELP = "配置：使用元素终端机";
                 public static LocString HEART_HELP_TOOLTIP =
-                    "选中元素终端机后，在“配置”页设置分解/固化/液化/气化配方，或为温控终端选择一种元素并设置目标温度；点击终端底部按钮区的元素之心名称按钮切换目标。气体、液体和电力由元素接口输入输出。";
+                    "选中元素终端机后，在“配置”页设置分解/固化/液化/气化配方，或用温控终端分别设置多种元素的目标温度与开关；点击终端底部按钮区的元素之心名称按钮切换目标。气体、液体和电力由元素接口输入输出。";
             }
         }
     }

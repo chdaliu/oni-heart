@@ -42,34 +42,38 @@
 
 选中 **元素终端机** 并连接元素之心后，配方列表会像食物压制器一样显示在右侧详情栏的“配置”页里：
 
-- **分解终端机**：只有水一个配方，点击配方打开配方详情后调节速率（kg/s）；速率为 0 即不工作。
+- **分解终端机**：只有水一个配方，点击配方打开配方详情后用拖动条调节速率（kg/s）；速率为 0 即不工作。
 - **固化终端机**：可以把**液体或气体**固化成对应固体，每个配方单独设置数量（kg）；0 即不工作。
 - **液化终端机**：可以把**气体或固体**液化成对应液体，每个配方单独设置数量（kg）；0 即不工作。
 - **气化终端机**：可以把**液体或固体**气化成对应气体，每个配方单独设置数量（kg）；0 即不工作。
 
 每个配方都有独立的目标值，多个配方可以同时工作。分解使用速率，转化使用数量，两种参数分开显示。
 
-面板使用食物压制器风格的配方行：元素图标 + 配方名称 + 当前数量/速率。配方行本身不显示增减按钮；点击配方行会在左侧打开“配方详情”面板，在详情页底部与食物压制器一致的控制栏里直接输入或调整速率/数量。详情页中原版的原料/效果占位区域已隐藏，只保留配方名称、当前库存和数量控制栏。配方列表不再显示配方/元素之心标题行，这些信息改为显示在建筑的属性面板状态里。
+面板使用食物压制器风格的配方行：元素图标 + 配方名称 + 当前数量/速率。配方行本身不显示增减按钮；点击配方行会在左侧打开“配方详情”面板。分解速率和温控目标温度使用游戏自带的温度条样式拖动条调节；固化/液化/气化仍然使用原来的数量输入框和加减按钮。详情页中原版的原料/效果占位区域和配方循环按钮均已隐藏。配方列表不再显示配方/元素之心标题行，这些信息改为显示在建筑的属性面板状态里。
 
-只显示目标产物在游戏中真实存在、可以生成的配方；没有对应产物物品的元素不会出现在转化面板里。此外只保留常规温度范围内的元素（约 10–1000 K），气态岩、岩浆、熔融金属、固态氢等极端元素不会进入配方列表。
+转化配方只接受**同一纯物质的相变**：目标产物必须真实存在、可以生成，并且源元素与目标元素属于同一物质家族。燃烧/氧化、精炼、裂化、冶炼、矿石加工、聚合/分解，以及盐水、脏水、牛奶、树脂等溶液/混合物都不会出现在配方列表里。
+
+因此会保留的典型配方包括：水/冰/蒸汽、CO2/O2/H2/CH4 的三相、氯/磷/硫/乙醇的相变、纯油脂/墨水/树脂/糖的固液相变；不会出现动物油脂→生物柴油/二氧化碳、木材/橡胶/煤焦油→二氧化碳、原油→石油、矿石→熔融金属、塑料→石脑油等配方。只有实际相变温度在 10–1000K 内的配方才会显示，岩浆、熔融金属等极端温度转换不会进入列表。
+
+配方列表还会进一步只显示**已经出现过的输入材料**：当前存档中已被游戏发现，或已经进入元素之心 / 已配置待处理数量。没有出现过的材料不会显示；转化产出的新物质会在第一次生成后自动解锁。分解终端不受这个过滤影响。
 
 处理规则：
 
-- **分解水**：按速率处理，1kg/s 水 → 0.888kg/s 氧气 + 0.112kg/s 氢气，耗电 120W，反应热 1.25kW，反应热直接转化为内部电力；耗电/产电随速率缩放。
-- **固化 / 液化 / 气化**：按元素自身的相变温度处理，输出温度落在稳定一侧，避免取出后立刻相变；处理时不与周围环境交换热量，放热直接转化为内部电力，吸热直接消耗内部电力。转化吞吐为 0.5kg/s。
+- **分解水**：按速率处理，1kg/s 水 → 0.888kg/s 氧气 + 0.112kg/s 氢气，耗电 120W，反应热 1.25kW，反应热直接转化为内部电力；耗电/产电随速率缩放。分解终端不受相变白名单影响。
+- **固化 / 液化 / 气化**：按源元素实际跨越的相变点处理，输出温度落在目标相的稳定一侧，避免取出后立刻相变；处理时不与周围环境交换热量，放热直接转化为内部电力，吸热直接消耗内部电力。热量按路径分段计算，各相使用各自的比热。转化吞吐为 0.5kg/s。
 - 转化配方按目标数量工作，达到设定数量后停止；输入不足时保留剩余数量，等材料补充后继续。
 - 所有产物直接存入元素之心内部 Storage。
 - 分解和相变都使用元素之心内部电力；需要吸热而电力不足时，会按可用电量降低处理量。
 
 ### 温控终端
 
-**元素终端机（温控）** 每个终端只能控制一种液体或气体元素，需要控制多种元素时请分别建造终端。
+**元素终端机（温控）** 同一个终端可以同时控制多种液体或气体元素，每种元素都有独立的目标温度和开关。
 
-- 在配置页选择一种元素，并开启恒温控制。
+- 配置页会列出所有可温控的液体/气体元素；点击某个元素打开温控详情，在详情里用拖动条设置目标温度，并用单独的开关启用该元素的恒温控制。
 - 目标温度会被限制在元素的稳定相区内部，并与相变点保持 2K 余量。例如水只能设在约 2°C ~ 98°C，不会结冰或汽化。
 - 温度低于目标时消耗元素之心内部电力加热；温度高于目标时将多余热量按 100% 转换为内部电力。
 - 电力不足时会按可用电量部分加热；冷却产生的电力直接进入元素之心的共享电力池。
-- 同一元素之心上，已经被其他温控终端占用的元素不会重复出现在可选列表中。
+- 同一元素之心上，同一种元素只会由一个温控终端控制；在另一个终端上启用同一元素时，会从原终端自动关闭，避免冲突。
 
 同一种液体/气体进入元素之心时，会自动按质量加权平均温度合并成一个堆，而不是保留成两个不同温度的堆。例如已有 20°C 的水，再输入 50°C 的水，会合并为按质量加权计算后的单一水温。没有安装温控终端时不会主动调温，只进行输入温度合并。
 
@@ -123,7 +127,7 @@
 ## 使用流程
 
 1. **收集固体**：建造元素之心后，在右侧材料列表里勾选要收集的固体品类；复制人会像往箱子搬东西一样送入元素之心。
-2. **配置处理**：建造元素终端机，它会自动连接最近的元素之心。选中终端后，右侧“配置”页会列出这一类操作的全部合法配方（不要求元素之心当前已有库存）；点开配方详情，在底部控制栏里设置目标数量/速率。温控终端则在配置页选择一种液体/气体元素、开启恒温并设置目标温度。属性面板状态会显示当前配方类型和连接的元素之心。
+2. **配置处理**：建造元素终端机，它会自动连接最近的元素之心。选中终端后，右侧“配置”页会列出这一类操作中已经出现过的材料的合法配方（当前库存或待处理数量也算已出现）；没遇到过的材料会在第一次出现后解锁。点开配方详情，在底部控制栏里设置目标数量/速率。温控终端则在配置页选择一种液体/气体元素、开启恒温并设置目标温度。属性面板状态会显示当前配方类型和连接的元素之心。
 3. **切换目标**：选中终端机、元素接口、装瓶器、卸瓶器或装载器后，点击底部按钮区的元素之心名称按钮，在该世界的元素之心之间循环切换；配方面板会立即跟随新目标刷新。
 4. **接入气液电**：分别建造气体/液体输入输出接口和电力接口。输入接口无需选择物质，会自动接收管道内容；输出接口在过滤列表中单选一种输出元素。输入接口先写入自己的缓冲，再送入元素之心；输出接口直接从元素之心取用。
 5. **手动装瓶/卸瓶/装载**：装瓶器从元素之心取物生成瓶装/元素块；卸瓶器把复制人送来的瓶子转入元素之心；手动装载器把固体/物品转入元素之心。装瓶器和卸瓶器使用来源标记避免同元素之心循环。
@@ -271,34 +275,38 @@ When a terminal is selected, a button showing the connected heart's name appears
 
 After selecting an **Element Terminal** and connecting a heart, the recipe list appears in the **Config** tab of the right details panel, in a food-press style:
 
-- **Decompose terminal**: only water. Open the recipe detail and adjust the rate (kg/s); rate 0 disables it.
+- **Decompose terminal**: only water. Open the recipe detail and drag the slider to adjust the rate (kg/s); rate 0 disables it.
 - **Solidify terminal**: solidifies **liquids or gases** into the corresponding solid. Each recipe has its own amount (kg); 0 disables it.
 - **Liquefy terminal**: liquefies **gases or solids** into the corresponding liquid. Each recipe has its own amount (kg); 0 disables it.
 - **Vaporize terminal**: vaporizes **liquids or solids** into the corresponding gas. Each recipe has its own amount (kg); 0 disables it.
 
 Each recipe has an independent target, and multiple recipes can run simultaneously. Decomposition uses a rate; conversions use an amount.
 
-The panel uses food-press-style recipe rows: element icon + recipe name + current quantity/rate. The row itself has no increment/decrement buttons; clicking a row opens the **Recipe Detail** panel on the left, with the same bottom control row as the food press for direct input or adjustment. The vanilla ingredient/effect placeholder areas are hidden, leaving only the recipe name, current stock, and the amount control row. The recipe list no longer shows a recipe/heart header row; that information is shown as a status item in the building's properties panel.
+The panel uses food-press-style recipe rows: element icon + recipe name + current quantity/rate. The row itself has no increment/decrement buttons; clicking a row opens the **Recipe Detail** panel on the left. Decomposition rate and thermostat target temperature use a slider styled like the game's native temperature bar; solidify/liquefy/vaporize keep the original quantity input field and increment/decrement buttons. The vanilla ingredient/effect placeholder areas and recipe-cycle buttons are hidden. The recipe list no longer shows a recipe/heart header row; that information is shown as a status item in the building's properties panel.
 
-Only recipes whose output actually exists and is spawnable are shown. Elements without a spawnable output item do not appear. Only elements within the normal temperature range (about 10-1000 K) are kept; extreme elements such as gaseous rock, magma, molten metal, and solid hydrogen are excluded.
+Conversion recipes only accept **phase changes of one pure substance**: the output must actually exist and be spawnable, and the source and target must belong to the same substance family. Combustion/oxidation, refining, cracking, smelting, ore processing, polymerization/decomposition, and solutions/mixtures such as salt water, polluted water, milk, or resin are not listed.
+
+Typical recipes that remain include water/ice/steam, the three phases of CO2/O2/H2/CH4, phase changes of chlorine/phosphorus/sulfur/ethanol, and the solid/liquid changes of pure oils, inks, resins and sugar. Animal fat -> biodiesel/CO2, wood/rubber/bitumen -> CO2, crude oil -> petroleum, ore -> molten metal, and plastic -> naphtha are excluded. Only recipes whose actual phase-change temperature is within 10-1000 K are shown; magma, molten metal and other extreme-temperature conversions are excluded.
+
+Recipe visibility is further limited to **input materials that have already appeared**: discovered in the current save, or already delivered to the heart / configured with a pending amount. Materials that have never appeared stay hidden; new outputs unlock after their first production. The decomposition terminal is not affected by this filter.
 
 Processing rules:
 
-- **Decompose water**: processed at the configured rate; 1 kg/s water -> 0.888 kg/s oxygen + 0.112 kg/s hydrogen, 120 W, 1.25 kW heat. Power and heat scale with rate.
-- **Solidify / Liquefy / Vaporize**: processed at the element's own phase-change temperature; the output temperature is placed on the stable side to avoid immediate re-phasing. Released heat is converted into internal power, and absorbed heat is paid for from internal power. Conversion throughput is 0.5 kg/s.
+- **Decompose water**: processed at the configured rate; 1 kg/s water -> 0.888 kg/s oxygen + 0.112 kg/s hydrogen, 120 W, 1.25 kW heat. Power and heat scale with rate. The decomposition terminal is not affected by the phase-change whitelist.
+- **Solidify / Liquefy / Vaporize**: processed at the transition point actually crossed by the source element; the output temperature is placed on the stable side to avoid immediate re-phasing. Released heat is converted into internal power, and absorbed heat is paid for from internal power. Heat is calculated per path segment, using each phase's own specific heat. Conversion throughput is 0.5 kg/s.
 - Conversion recipes run toward the target amount and stop when reached; if input is insufficient, the remaining amount is kept until more material arrives.
 - All outputs go directly into the heart's internal Storage.
 - Decomposition consumes the heart's internal power; if power is insufficient, throughput is reduced to the available power.
 
 ### Thermostat terminal
 
-Each **Element Terminal (Thermostat)** controls exactly one liquid or gas element. Build separate terminals to control multiple elements.
+A single **Element Terminal (Thermostat)** can control several liquid or gas elements at the same time. Each element has its own target temperature and its own switch.
 
-- Choose an element in the Config tab and enable temperature control.
+- The Config tab lists every controllable liquid/gas element. Click an element to open its thermostat detail, set the target with the slider, and enable it with the separate switch.
 - The target is clamped to the element's stable phase range with a 2 K margin from both phase-change points. Water, for example, can only be set to roughly 2-98 °C, so it will not freeze or boil.
 - Below the target, the heart's internal power is consumed for heating; above the target, the excess heat is converted 100% into internal power.
 - If power is limited, only part of the required heating is applied. Cooling power goes directly into the heart's shared power pool.
-- Elements already assigned to another thermostat on the same heart are not offered again in the selection list.
+- One element can only be controlled by one thermostat terminal per heart. Enabling the same element on another terminal automatically turns it off on the previous terminal to avoid conflicts.
 
 When a liquid/gas element enters the heart, portions of the same element are merged into one stack with a mass-weighted average temperature instead of being stored as two stacks at different temperatures. For example, 20 °C water plus incoming 50 °C water becomes one water stack at the mass-weighted temperature. Without a thermostat, no active temperature control is performed; only the input-temperature merge happens.
 
@@ -352,7 +360,7 @@ For power, all power interfaces are connected through the heart's shared power p
 ## Usage flow
 
 1. **Collect solids**: after building the Heart of Elements, check the solid categories to collect in the material list; duplicants haul them in like a storage bin.
-2. **Configure processing**: build an Element Terminal; it automatically connects to the nearest heart. Select the terminal, and the Config tab lists all valid recipes for that operation (regardless of current heart inventory). Open a recipe detail and set the target amount/rate in the bottom control row. For a thermostat, choose one liquid/gas element, enable temperature control, and set the target temperature. The properties panel shows the current recipe type and connected heart.
+2. **Configure processing**: build an Element Terminal; it automatically connects to the nearest heart. Select the terminal, and the Config tab lists valid recipes whose input materials have already appeared (current inventory or pending amounts count as appeared); materials not yet encountered unlock after their first appearance. Open a recipe detail and set the target amount/rate in the bottom control row. For a thermostat, choose one liquid/gas element, enable temperature control, and set the target temperature. The properties panel shows the current recipe type and connected heart.
 3. **Switch targets**: select a terminal, element interface, bottler, unbottler, or loader, then click the heart-name button in the bottom button area to cycle through same-world hearts. The recipe panel refreshes immediately.
 4. **Connect gas/liquid/power**: build gas/liquid input and output interfaces and power interfaces. Input interfaces need no substance selection and automatically accept pipe contents; output interfaces use a single-select filter list. Input interfaces first write to their own buffer and then send to the heart; output interfaces draw directly from the heart.
 5. **Manual bottling/unbottling/loading**: the bottler takes material from the heart and produces bottles/element chunks on demand; the unbottler transfers delivered bottles into the heart; the manual loader transfers solids/items into the heart. Bottler/unbottler use source tags to prevent same-heart loops.

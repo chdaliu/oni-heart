@@ -52,6 +52,7 @@ namespace ONIHeart
         private void OnStorageChanged(GameObject item)
         {
             TagItem(item);
+            DiscoverItem(item);
 
             // Gases/liquids of the same element must be kept as one stack with a mass-weighted
             // temperature. New items can arrive through pipes, bottles, recipes or vanilla transfers.
@@ -76,6 +77,21 @@ namespace ONIHeart
             for (int i = 0; i < storage.items.Count; i++)
             {
                 TagItem(storage.items[i]);
+                DiscoverItem(storage.items[i]);
+            }
+        }
+
+        private static void DiscoverItem(GameObject item)
+        {
+            if (item == null || DiscoveredResources.Instance == null)
+            {
+                return;
+            }
+
+            PrimaryElement primary = item.GetComponent<PrimaryElement>();
+            if (primary != null && primary.Element != null)
+            {
+                DiscoveredResources.Instance.Discover(primary.Element.tag, primary.Element.GetMaterialCategoryTag());
             }
         }
 

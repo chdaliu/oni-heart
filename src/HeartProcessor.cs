@@ -32,12 +32,119 @@ namespace ONIHeart
 
         public const float THERMOSTAT_MARGIN_KELVIN = 2f;
 
+        private const float PHASE_MARGIN_KELVIN = 2f;
+
         private const float CONVERSION_RATE_KG_PER_SECOND = 0.5f;
         private const float DECOMPOSE_POWER_PER_KG = 120f;
         private const float DECOMPOSE_HEAT_PER_KG = 1250f;
         private const float DECOMPOSE_TEMPERATURE = 343.15f;
         private const float WATER_TO_OXYGEN = 0.888f;
         private const float WATER_TO_HYDROGEN = 0.112f;
+
+        // Only pure, single-substance phase changes are exposed as conversion recipes.
+        // Keys are Element.id names (SimHashes names), values are substance-family keys.
+        // Metals, solutions/mixtures and all chemical/industrial transitions are intentionally absent:
+        // combustion/oxidation, refining, cracking, smelting, ore processing, etc.
+        private static readonly Dictionary<string, string> AllowedPhaseFamilies =
+            new Dictionary<string, string>
+            {
+                // Water (pure water and its solid/gas phases)
+                { "Water", "water" },
+                { "Steam", "water" },
+                { "Ice", "water" },
+                { "Snow", "water" },
+                { "CrushedIce", "water" },
+                { "StableSnow", "water" },
+
+                // Carbon dioxide
+                { "CarbonDioxide", "carbon_dioxide" },
+                { "LiquidCarbonDioxide", "carbon_dioxide" },
+                { "SolidCarbonDioxide", "carbon_dioxide" },
+
+                // Oxygen
+                { "Oxygen", "oxygen" },
+                { "LiquidOxygen", "oxygen" },
+                { "SolidOxygen", "oxygen" },
+
+                // Hydrogen
+                { "Hydrogen", "hydrogen" },
+                { "LiquidHydrogen", "hydrogen" },
+                { "SolidHydrogen", "hydrogen" },
+
+                // Methane
+                { "Methane", "methane" },
+                { "LiquidMethane", "methane" },
+                { "SolidMethane", "methane" },
+
+                // Chlorine (Chlorine is the liquid phase, ChlorineGas the gas phase)
+                { "ChlorineGas", "chlorine" },
+                { "Chlorine", "chlorine" },
+                { "SolidChlorine", "chlorine" },
+
+                // Phosphorus
+                { "PhosphorusGas", "phosphorus" },
+                { "LiquidPhosphorus", "phosphorus" },
+                { "Phosphorus", "phosphorus" },
+
+                // Sulfur
+                { "SulfurGas", "sulfur" },
+                { "LiquidSulfur", "sulfur" },
+                { "Sulfur", "sulfur" },
+
+                // Ethanol
+                { "EthanolGas", "ethanol" },
+                { "Ethanol", "ethanol" },
+                { "SolidEthanol", "ethanol" },
+
+                // Pure oils, inks, resins and sugar
+                { "PhytoOil", "phytooil" },
+                { "FrozenPhytoOil", "phytooil" },
+                { "Ink", "ink" },
+                { "FrozenInk", "ink" },
+                { "NaturalResin", "natural_resin" },
+                { "NaturalSolidResin", "natural_resin" },
+                { "Sucrose", "sucrose" },
+                { "MoltenSucrose", "sucrose" }
+            };
+
+        private struct PhasePath
+        {
+            public Element Target;
+            public float OutputTemperature;
+            public Element PhaseA;
+            public Element PhaseB;
+            public Element PhaseC;
+            public float TransitionA;
+            public float TransitionB;
+            public int PhaseCount;
+            public int TransitionCount;
+
+            public void SetSingle(Element source, Element target, float transition, float output)
+            {
+                Target = target;
+                OutputTemperature = output;
+                PhaseA = source;
+                PhaseB = target;
+                PhaseC = null;
+                TransitionA = transition;
+                TransitionB = 0f;
+                PhaseCount = 2;
+                TransitionCount = 1;
+            }
+
+            public void SetDouble(Element source, Element middle, Element target, float firstTransition, float secondTransition, float output)
+            {
+                Target = target;
+                OutputTemperature = output;
+                PhaseA = source;
+                PhaseB = middle;
+                PhaseC = target;
+                TransitionA = firstTransition;
+                TransitionB = secondTransition;
+                PhaseCount = 3;
+                TransitionCount = 2;
+            }
+        }
 
         [Serialize]
         private float decomposeRate;
@@ -106,6 +213,7 @@ namespace ONIHeart
 
         public void SetPending(HeartProcessOperation operationKind, Tag element, float amount)
         {
+            bool markDiscovered = false;
             lock (pendingLock)
             {
                 NormalizeDictionaries();
@@ -122,7 +230,15 @@ namespace ONIHeart
                 else
                 {
                     map[element] = Mathf.Clamp(amount, 0f, MAX_CONVERSION_AMOUNT);
+                    markDiscovered = true;
                 }
+            }
+
+            // Discover outside the pending lock: DiscoveredResources raises events that may
+            // touch other game systems.
+            if (markDiscovered)
+            {
+                DiscoverElement(ElementLoader.GetElement(element));
             }
         }
 
@@ -155,10 +271,20 @@ namespace ONIHeart
 
                 foreach (KeyValuePair<Tag, float> pair in map)
                 {
-                    if (pair.Value > 0.001f)
+                    if (pair.Value <= 0.001f)
                     {
-                        result.Add(pair.Key);
+                        continue;
                     }
+
+                    // Hide entries that are no longer valid under the current recipe filter
+                    // (for example pending recipes saved before a filter change).
+                    Element element = ElementLoader.GetElement(pair.Key);
+                    if (element == null || !IsValidInput(element, operationKind))
+                    {
+                        continue;
+                    }
+
+                    result.Add(pair.Key);
                 }
             }
 
@@ -206,8 +332,9 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// For the panel: list all valid recipes for this operation regardless of current heart inventory.
-        /// This lets players configure target amounts before delivering materials.
+        /// For the panel: list valid recipes whose input material has appeared in this save
+        /// (discovered by the game) or has entered this heart / has a pending amount.
+        /// Materials that have never appeared are hidden until they are encountered.
         /// </summary>
         public List<Tag> GetAllRecipeInputs(HeartProcessOperation operationKind)
         {
@@ -223,17 +350,75 @@ namespace ONIHeart
                 return result;
             }
 
+            HashSet<Tag> appeared = CollectAppearedInputs();
+            bool canCheckDiscovery = DiscoveredResources.Instance != null;
+
             for (int i = 0; i < ElementLoader.elements.Count; i++)
             {
                 Element element = ElementLoader.elements[i];
-                if (IsValidInput(element, operationKind))
+                if (!IsValidInput(element, operationKind))
                 {
-                    result.Add(element.tag);
+                    continue;
                 }
+
+                if (canCheckDiscovery &&
+                    !DiscoveredResources.Instance.IsDiscovered(element.tag) &&
+                    !appeared.Contains(element.tag))
+                {
+                    continue;
+                }
+
+                result.Add(element.tag);
             }
 
             result.Sort((a, b) => string.CompareOrdinal(a.ProperName(), b.ProperName()));
             return result;
+        }
+
+        /// <summary>
+        /// Current heart inventory and pending conversion targets always count as "appeared".
+        /// This also seeds discovery for old saves that configured recipes before discovery tracking existed.
+        /// </summary>
+        private HashSet<Tag> CollectAppearedInputs()
+        {
+            HashSet<Tag> appeared = new HashSet<Tag>();
+
+            if (heart != null && heart.Storage != null)
+            {
+                for (int i = 0; i < heart.Storage.items.Count; i++)
+                {
+                    GameObject item = heart.Storage.items[i];
+                    PrimaryElement primary = item != null ? item.GetComponent<PrimaryElement>() : null;
+                    if (primary == null || primary.Element == null)
+                    {
+                        continue;
+                    }
+
+                    appeared.Add(primary.Element.tag);
+                    DiscoverElement(primary.Element);
+                }
+            }
+
+            AddPendingToAppeared(HeartProcessOperation.Solidify, appeared);
+            AddPendingToAppeared(HeartProcessOperation.Liquefy, appeared);
+            AddPendingToAppeared(HeartProcessOperation.Vaporize, appeared);
+            return appeared;
+        }
+
+        private void AddPendingToAppeared(HeartProcessOperation operationKind, HashSet<Tag> appeared)
+        {
+            List<Tag> pending = GetPendingElements(operationKind);
+            for (int i = 0; i < pending.Count; i++)
+            {
+                Element element = ElementLoader.GetElement(pending[i]);
+                if (element == null)
+                {
+                    continue;
+                }
+
+                appeared.Add(element.tag);
+                DiscoverElement(element);
+            }
         }
 
         /// <summary>Amount of an element currently stored inside the heart.</summary>
@@ -272,7 +457,7 @@ namespace ONIHeart
                     HeartTerminal terminal = HeartTerminal.All[i];
                     if (terminal != null && terminal.Heart == heart &&
                         terminal.operation == HeartProcessOperation.Thermostat &&
-                        terminal.ThermostatEnabled)
+                        terminal.HasEnabledThermostats)
                     {
                         return true;
                     }
@@ -492,16 +677,15 @@ namespace ONIHeart
         /// </summary>
         private float PhaseChange(HeartProcessOperation operationKind, Element sourceElement, PrimaryElement source, float mass)
         {
-            Element target;
-            float outputTemperature;
-            if (!TryGetPhaseTarget(operationKind, sourceElement, out target, out outputTemperature))
+            PhasePath path;
+            if (!TryGetPhasePath(operationKind, sourceElement, out path))
             {
                 return 0f;
             }
 
-            // Joules needed per kg to move the element to its output temperature (negative = released).
-            float heatPerKg = sourceElement.specificHeatCapacity *
-                              (outputTemperature - source.Temperature) * 1000f;
+            // Sensible heat needed per kg for the whole path (negative = released).
+            // Each phase uses its own specific heat capacity; latent heat is not modelled by ONI.
+            float heatPerKg = GetPhaseHeatPerKg(path, source.Temperature);
 
             if (heatPerKg > 0f)
             {
@@ -518,7 +702,7 @@ namespace ONIHeart
             }
 
             heart.Storage.ConsumeIgnoringDisease(sourceElement.id.CreateTag(), mass);
-            heart.AddElementMerged(target.id, mass, outputTemperature, byte.MaxValue, 0, false, false);
+            heart.AddElementMerged(path.Target.id, mass, path.OutputTemperature, byte.MaxValue, 0, false, false);
 
             float heat = heatPerKg * mass;
             if (heat < 0f)
@@ -540,33 +724,70 @@ namespace ONIHeart
 
         private bool TryGetPhaseTarget(HeartProcessOperation operationKind, Element source, out Element target, out float temperature)
         {
-            target = null;
-            temperature = 0f;
+            PhasePath path;
+            if (!TryGetPhasePath(operationKind, source, out path))
+            {
+                target = null;
+                temperature = 0f;
+                return false;
+            }
+
+            target = path.Target;
+            temperature = path.OutputTemperature;
+            return true;
+        }
+
+        /// <summary>
+        /// Builds the phase path for one conversion. Every edge must stay inside the same pure-substance
+        /// family; chemical transformations (combustion, refining, smelting, cracking, mixtures, etc.) are rejected.
+        /// </summary>
+        private bool TryGetPhasePath(HeartProcessOperation operationKind, Element source, out PhasePath path)
+        {
+            path = new PhasePath();
+            if (source == null || source.disabled)
+            {
+                return false;
+            }
 
             switch (operationKind)
             {
                 case HeartProcessOperation.Solidify:
                     if (source.IsLiquid)
                     {
-                        target = source.lowTempTransition;
-                        if (!HasSpawnableTarget(target, source, Element.State.Solid))
+                        Element solid = source.lowTempTransition;
+                        if (!HasSpawnableTarget(solid, source, Element.State.Solid) ||
+                            !IsSameSubstanceFamily(source, solid) ||
+                            HasOreByproduct(source, false) ||
+                            source.lowTemp <= 0f)
                         {
                             return false;
                         }
 
-                        temperature = target.highTemp > 1f ? target.highTemp - 2f : source.lowTemp - 2f;
+                        path.SetSingle(source, solid, source.lowTemp, source.lowTemp - PHASE_MARGIN_KELVIN);
                     }
                     else if (source.IsGas)
                     {
                         // Gas first condenses to liquid and then solidifies: gas -> liquid -> solid.
                         Element liquid = source.lowTempTransition;
-                        target = liquid != null ? liquid.lowTempTransition : null;
-                        if (!HasSpawnableTarget(target, source, Element.State.Solid))
+                        if (liquid == null || liquid.disabled || !liquid.IsLiquid)
                         {
                             return false;
                         }
 
-                        temperature = target.highTemp > 1f ? target.highTemp - 2f : target.defaultValues.temperature;
+                        Element solid = liquid.lowTempTransition;
+                        if (!HasSpawnableTarget(solid, source, Element.State.Solid) ||
+                            !IsSameSubstanceFamily(source, liquid) ||
+                            !IsSameSubstanceFamily(liquid, solid) ||
+                            HasOreByproduct(source, false) ||
+                            HasOreByproduct(liquid, false) ||
+                            source.lowTemp <= 0f ||
+                            liquid.lowTemp <= 0f)
+                        {
+                            return false;
+                        }
+
+                        path.SetDouble(source, liquid, solid, source.lowTemp, liquid.lowTemp,
+                            liquid.lowTemp - PHASE_MARGIN_KELVIN);
                     }
                     else
                     {
@@ -577,23 +798,29 @@ namespace ONIHeart
                 case HeartProcessOperation.Liquefy:
                     if (source.IsGas)
                     {
-                        target = source.lowTempTransition;
-                        if (!HasSpawnableTarget(target, source, Element.State.Liquid))
+                        Element liquid = source.lowTempTransition;
+                        if (!HasSpawnableTarget(liquid, source, Element.State.Liquid) ||
+                            !IsSameSubstanceFamily(source, liquid) ||
+                            HasOreByproduct(source, false) ||
+                            source.lowTemp <= 0f)
                         {
                             return false;
                         }
 
-                        temperature = target.highTemp > 1f ? target.highTemp - 2f : source.lowTemp - 2f;
+                        path.SetSingle(source, liquid, source.lowTemp, source.lowTemp - PHASE_MARGIN_KELVIN);
                     }
                     else if (source.IsSolid)
                     {
-                        target = source.highTempTransition;
-                        if (!HasSpawnableTarget(target, source, Element.State.Liquid))
+                        Element liquid = source.highTempTransition;
+                        if (!HasSpawnableTarget(liquid, source, Element.State.Liquid) ||
+                            !IsSameSubstanceFamily(source, liquid) ||
+                            HasOreByproduct(source, true) ||
+                            source.highTemp <= 0f)
                         {
                             return false;
                         }
 
-                        temperature = target.lowTemp + 2f;
+                        path.SetSingle(source, liquid, source.highTemp, source.highTemp + PHASE_MARGIN_KELVIN);
                     }
                     else
                     {
@@ -604,27 +831,60 @@ namespace ONIHeart
                 case HeartProcessOperation.Vaporize:
                     if (source.IsLiquid)
                     {
-                        target = source.highTempTransition;
-                        if (!HasSpawnableTarget(target, source, Element.State.Gas))
+                        Element gas = source.highTempTransition;
+                        if (!HasSpawnableTarget(gas, source, Element.State.Gas) ||
+                            !IsSameSubstanceFamily(source, gas) ||
+                            HasOreByproduct(source, true) ||
+                            source.highTemp <= 0f)
                         {
                             return false;
                         }
 
-                        temperature = target.lowTemp + 2f;
+                        path.SetSingle(source, gas, source.highTemp, source.highTemp + PHASE_MARGIN_KELVIN);
                     }
                     else if (source.IsSolid)
                     {
-                        // Solids sublimate directly; if there is no direct transition, go through liquid before vaporizing.
-                        Element liquid = source.highTempTransition;
-                        target = liquid != null && liquid.IsGas
-                            ? liquid
-                            : (liquid != null ? liquid.highTempTransition : null);
-                        if (!HasSpawnableTarget(target, source, Element.State.Gas))
+                        // Solids either sublimate directly or go through a liquid before vaporizing.
+                        Element first = source.highTempTransition;
+                        if (first == null)
                         {
                             return false;
                         }
 
-                        temperature = target.lowTemp + 2f;
+                        if (first.IsGas)
+                        {
+                            if (!HasSpawnableTarget(first, source, Element.State.Gas) ||
+                                !IsSameSubstanceFamily(source, first) ||
+                                HasOreByproduct(source, true) ||
+                                source.highTemp <= 0f)
+                            {
+                                return false;
+                            }
+
+                            path.SetSingle(source, first, source.highTemp,
+                                source.highTemp + PHASE_MARGIN_KELVIN);
+                        }
+                        else if (!first.disabled && first.IsLiquid)
+                        {
+                            Element gas = first.highTempTransition;
+                            if (!HasSpawnableTarget(gas, source, Element.State.Gas) ||
+                                !IsSameSubstanceFamily(source, first) ||
+                                !IsSameSubstanceFamily(first, gas) ||
+                                HasOreByproduct(source, true) ||
+                                HasOreByproduct(first, true) ||
+                                source.highTemp <= 0f ||
+                                first.highTemp <= 0f)
+                            {
+                                return false;
+                            }
+
+                            path.SetDouble(source, first, gas, source.highTemp, first.highTemp,
+                                first.highTemp + PHASE_MARGIN_KELVIN);
+                        }
+                        else
+                        {
+                            return false;
+                        }
                     }
                     else
                     {
@@ -636,8 +896,118 @@ namespace ONIHeart
                     return false;
             }
 
-            temperature = Mathf.Clamp(temperature, 1f, 9999f);
-            return true;
+            path.OutputTemperature = Mathf.Clamp(path.OutputTemperature, 1f, 9999f);
+            if (path.OutputTemperature < MIN_CONVENTIONAL_TEMPERATURE ||
+                path.OutputTemperature > MAX_CONVENTIONAL_TEMPERATURE)
+            {
+                return false;
+            }
+
+            return IsTemperatureStable(path);
+        }
+
+        private static void DiscoverElement(Element element)
+        {
+            if (element == null || element.disabled || DiscoveredResources.Instance == null)
+            {
+                return;
+            }
+
+            DiscoveredResources.Instance.Discover(element.tag, element.GetMaterialCategoryTag());
+        }
+
+        /// <summary>
+        /// Some high/low temperature transitions also produce a separate ore byproduct
+        /// (for example smelting ore or boiling a solution). Those are not pure phase changes.
+        /// </summary>
+        private static bool HasOreByproduct(Element element, bool heating)
+        {
+            if (element == null)
+            {
+                return false;
+            }
+
+            return heating
+                ? element.highTempTransitionOreID != SimHashes.Vacuum &&
+                  element.highTempTransitionOreMassConversion > 0f
+                : element.lowTempTransitionOreID != SimHashes.Vacuum &&
+                  element.lowTempTransitionOreMassConversion > 0f;
+        }
+
+        private static bool IsSameSubstanceFamily(Element first, Element second)
+        {
+            if (first == null || second == null)
+            {
+                return false;
+            }
+
+            string firstFamily;
+            string secondFamily;
+            if (!AllowedPhaseFamilies.TryGetValue(first.id.ToString(), out firstFamily) ||
+                !AllowedPhaseFamilies.TryGetValue(second.id.ToString(), out secondFamily))
+            {
+                return false;
+            }
+
+            return firstFamily == secondFamily;
+        }
+
+        private static bool IsTemperatureStable(PhasePath path)
+        {
+            Element target = path.Target;
+            if (target == null)
+            {
+                return false;
+            }
+
+            float temperature = path.OutputTemperature;
+            if (target.IsGas)
+            {
+                return target.lowTemp <= 0f || temperature > target.lowTemp;
+            }
+
+            if (target.IsLiquid)
+            {
+                bool aboveFreezing = target.lowTemp <= 0f || temperature > target.lowTemp;
+                bool belowBoiling = target.highTemp <= 0f || temperature < target.highTemp;
+                return aboveFreezing && belowBoiling;
+            }
+
+            if (target.IsSolid)
+            {
+                return target.highTemp <= 0f || temperature < target.highTemp;
+            }
+
+            return false;
+        }
+
+        private static float GetPhaseHeatPerKg(PhasePath path, float inputTemperature)
+        {
+            float heat = 0f;
+            float current = inputTemperature;
+
+            if (path.TransitionCount >= 1)
+            {
+                heat += PhaseHeat(path.PhaseA, current, path.TransitionA);
+                current = path.TransitionA;
+            }
+
+            if (path.TransitionCount >= 2)
+            {
+                heat += PhaseHeat(path.PhaseB, current, path.TransitionB);
+                current = path.TransitionB;
+            }
+
+            Element finalPhase = path.PhaseCount > 2 ? path.PhaseC : path.PhaseB;
+            heat += PhaseHeat(finalPhase, current, path.OutputTemperature);
+            return heat;
+        }
+
+        private static float PhaseHeat(Element phase, float fromTemperature, float toTemperature)
+        {
+            return phase == null
+                ? 0f
+                : phase.specificHeatCapacity * (toTemperature - fromTemperature) * 1000f;
         }
 
         private bool IsValidInput(Element element, HeartProcessOperation operationKind)
@@ -735,30 +1105,12 @@ namespace ONIHeart
         }
 
         /// <summary>
-        /// Elements that can be assigned to a thermostat terminal. Elements already assigned to
-        /// another thermostat on the same heart are excluded, so two terminals cannot fight over
-        /// the same element's target temperature.
+        /// Elements that can be assigned to a thermostat terminal. A thermostat terminal can
+        /// control several elements at the same time, and each element has its own target and switch.
         /// </summary>
         public List<Tag> GetThermostatCandidates(HeartTerminal terminal)
         {
             List<Tag> result = new List<Tag>();
-            HashSet<SimHashes> blocked = new HashSet<SimHashes>();
-
-            if (heart != null)
-            {
-                for (int i = 0; i < HeartTerminal.All.Count; i++)
-                {
-                    HeartTerminal other = HeartTerminal.All[i];
-                    if (other != null && other != terminal && other.Heart == heart &&
-                        other.operation == HeartProcessOperation.Thermostat &&
-                        other.ThermostatElement != SimHashes.Vacuum)
-                    {
-                        blocked.Add(other.ThermostatElement);
-                    }
-                }
-            }
-
-            SimHashes selected = terminal != null ? terminal.ThermostatElement : SimHashes.Vacuum;
             for (int i = 0; i < ElementLoader.elements.Count; i++)
             {
                 Element element = ElementLoader.elements[i];
@@ -769,29 +1121,9 @@ namespace ONIHeart
                     continue;
                 }
 
-                if (blocked.Contains(element.id) && element.id != selected)
-                {
-                    continue;
-                }
-
                 if (!result.Contains(element.tag))
                 {
                     result.Add(element.tag);
-                }
-            }
-
-            if (selected != SimHashes.Vacuum)
-            {
-                Tag tag = selected.CreateTag();
-                if (!result.Contains(tag))
-                {
-                    Element element = ElementLoader.GetElement(tag);
-                    float min;
-                    float max;
-                    if (TryGetThermostatRange(element, out min, out max))
-                    {
-                        result.Add(tag);
-                    }
                 }
             }
 
@@ -816,27 +1148,25 @@ namespace ONIHeart
             {
                 HeartTerminal terminal = HeartTerminal.All[i];
                 if (terminal == null || terminal.Heart != heart ||
-                    terminal.operation != HeartProcessOperation.Thermostat ||
-                    !terminal.ThermostatEnabled)
+                    terminal.operation != HeartProcessOperation.Thermostat)
                 {
                     continue;
                 }
 
-                SimHashes id = terminal.ThermostatElement;
-                if (id == SimHashes.Vacuum)
+                List<Tag> elements = terminal.GetEnabledThermostatElements();
+                for (int j = 0; j < elements.Count; j++)
                 {
-                    continue;
-                }
+                    Element element = ElementLoader.GetElement(elements[j]);
+                    float min;
+                    float max;
+                    if (!TryGetThermostatRange(element, out min, out max) || !handled.Add(element.id))
+                    {
+                        continue;
+                    }
 
-                Element element = ElementLoader.GetElement(id.CreateTag());
-                float min;
-                float max;
-                if (!TryGetThermostatRange(element, out min, out max) || !handled.Add(id))
-                {
-                    continue;
+                    float target = terminal.GetThermostatTargetKelvin(elements[j]);
+                    ApplyThermostat(element, Mathf.Clamp(target, min, max));
                 }
-
-                ApplyThermostat(element, Mathf.Clamp(terminal.ThermostatTargetKelvin, min, max));
             }
         }
 
@@ -906,11 +1236,9 @@ namespace ONIHeart
             {
                 HeartTerminal terminal = HeartTerminal.All[i];
                 if (terminal != null && terminal.Heart == heart &&
-                    terminal.operation == HeartProcessOperation.Thermostat &&
-                    terminal.ThermostatEnabled &&
-                    terminal.ThermostatElement != SimHashes.Vacuum)
+                    terminal.operation == HeartProcessOperation.Thermostat)
                 {
-                    thermostatCount++;
+                    thermostatCount += terminal.GetEnabledThermostatElements().Count;
                 }
             }
 
