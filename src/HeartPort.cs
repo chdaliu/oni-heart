@@ -71,11 +71,9 @@ namespace ONIHeart
                 filterable.filterElementState = IsGasPort
                     ? Filterable.ElementState.Gas
                     : Filterable.ElementState.Liquid;
-                if (selectedElement == SimHashes.Vacuum)
-                {
-                    selectedElement = DefaultElementForKind();
-                }
 
+                // Output interfaces start with no element selected. The player must choose one
+                // in the filter list before the port will dispense anything.
                 if (selectedElement != SimHashes.Vacuum)
                 {
                     filterable.SelectedTag = selectedElement.CreateTag();
@@ -416,21 +414,6 @@ namespace ONIHeart
 
             result.Sort((a, b) => ((int)a).CompareTo((int)b));
             return result;
-        }
-
-        public SimHashes DefaultElementForKind()
-        {
-            switch (kind)
-            {
-                case HeartPortKind.GasOutput:
-                    return SimHashes.Oxygen;
-
-                case HeartPortKind.LiquidOutput:
-                    return SimHashes.Water;
-
-                default:
-                    return SimHashes.Vacuum;
-            }
         }
     }
 }

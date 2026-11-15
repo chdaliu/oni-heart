@@ -120,7 +120,7 @@ namespace ONIHeart
         {
             HeartPort port = go.AddOrGet<HeartPort>();
             port.kind = Kind;
-            port.selectedElement = port.DefaultElementForKind();
+            // Leave selectedElement at Vacuum: output interfaces must be configured explicitly.
 
             if (FilterState != Filterable.ElementState.None)
             {
