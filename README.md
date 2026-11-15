@@ -18,7 +18,7 @@
 - 无限容量存储固体、液体、气体；不同元素分别堆叠。
 - 食物不会腐败（应用 `Preserve`）。
 - 固体不会挥发/升华（应用 `Seal`）。
-- 蛋不会孵化（存入普通 Storage 后孵化被抑制）。
+- 蛋不会孵化，也不会失去活性：存放期间孵化度和活性都保持不变（离开元素之心后恢复正常）。
 - 内部物品不参与热交换（应用 `Insulate`），建筑自身 `UseStructureTemperature = false`。
 - 不会被融化或破坏；只能通过“拆除”指令移除。
 - 拆除时：固体直接掉出，气体/液体以瓶装/罐装形式保留，内部电力清空。
@@ -115,7 +115,7 @@
 选中元素接口后，属性面板会显示连接的元素之心、方向和输出物质；底部按钮区显示当前元素之心的名称，点击可在同类元素之心之间循环切换目标。
 
 - **气体/液体输入接口**：不限制元素类型，管道送来什么气体/液体就自动存入元素之心。输入接口没有过滤列表，也不会显示“物质”选项。
-- **气体/液体输出接口**：只有一个输出管道口；必须在过滤列表中勾选一种要输出的元素（只能单选），未选择时不会输出。
+- **气体/液体输出接口**：只有一个输出管道口；必须在过滤列表中勾选一种要输出的元素（只能单选），未选择时不会输出。新建的输出接口默认不选择任何元素。
 - **电力接口**：只有元素之心切换按钮；它是一根双向连接，电网富余时存入、缺电时取出。
 
 接口默认自动连接最近的、同世界的元素之心；也可以手动切换。切换目标或物质后立即生效。
@@ -251,7 +251,7 @@ An Oxygen Not Included mod that adds a 4x4 building, the **Heart of Elements**, 
 - Infinite storage for solids, liquids, and gases; each element stacks separately.
 - Food does not spoil (`Preserve`).
 - Solids do not off-gas/sublimate (`Seal`).
-- Eggs do not hatch (hatching is suppressed when stored in normal Storage).
+- Eggs do not hatch and do not lose viability: both incubation and viability stay frozen while stored, and resume normally once removed.
 - Stored items do not exchange heat (`Insulate`); the building itself uses `UseStructureTemperature = false`.
 - Cannot be melted or destroyed; only the "Deconstruct" command removes it.
 - On deconstruction: solids drop directly, gases/liquids are preserved as bottled/canned items, and internal power is cleared.
@@ -348,7 +348,7 @@ Interface construction materials:
 When an element interface is selected, the properties panel shows the connected heart, direction, and output element. The bottom button area shows the current heart's name; click to cycle same-kind hearts.
 
 - **Gas/liquid input interfaces**: do not restrict element type; whatever gas/liquid the pipe delivers is stored into the heart. Input interfaces have no filter list and no "substance" option.
-- **Gas/liquid output interfaces**: have only one output pipe port; you must select exactly one output element in the filter list (single-select). Nothing is output when no element is selected.
+- **Gas/liquid output interfaces**: have only one output pipe port; you must select exactly one output element in the filter list (single-select). Nothing is output when no element is selected. Newly built output interfaces start with no element selected.
 - **Power interface**: only has the heart switch button; it is a bidirectional connection that stores surplus grid power and supplies power when the grid is short.
 
 Interfaces automatically connect to the nearest same-world heart; you can also switch manually. Changes take effect immediately.

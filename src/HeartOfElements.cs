@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Klei.AI;
 using KSerialization;
 using UnityEngine;
 
@@ -45,14 +46,21 @@ namespace ONIHeart
                 storage.OnStorageChange -= OnStorageChanged;
             }
 
+            ReleaseAllEggStasis();
             All.Remove(this);
             base.OnCleanUp();
         }
 
         private void OnStorageChanged(GameObject item)
         {
+            if (item == null)
+            {
+                return;
+            }
+
             TagItem(item);
             DiscoverItem(item);
+            UpdateEggStasis(item);
 
             // Gases/liquids of the same element must be kept as one stack with a mass-weighted
             // temperature. New items can arrive through pipes, bottles, recipes or vanilla transfers.
@@ -78,6 +86,93 @@ namespace ONIHeart
             {
                 TagItem(storage.items[i]);
                 DiscoverItem(storage.items[i]);
+                UpdateEggStasis(storage.items[i]);
+            }
+        }
+
+        /// <summary>
+        /// Eggs inside the heart are in complete stasis: incubation must not progress and
+        /// viability must not decay. Vanilla storage already suppresses incubation, but that
+        /// suppression effect drains viability, so both amount instances are removed from the
+        /// simulation scheduler while the egg is stored here. They are re-added when the egg
+        /// leaves the heart (including when it is moved into an incubator).
+        /// </summary>
+        private void UpdateEggStasis(GameObject item)
+        {
+            if (item == null || !IsEgg(item))
+            {
+                return;
+            }
+
+            bool inThisHeart = storage != null && storage.items != null && storage.items.Contains(item);
+            bool inAnotherHeart = false;
+            if (!inThisHeart)
+            {
+                Pickupable pickupable = item.GetComponent<Pickupable>();
+                Storage currentStorage = pickupable != null ? pickupable.storage : null;
+                if (currentStorage != null && currentStorage != storage &&
+                    currentStorage.GetComponent<HeartOfElements>() != null &&
+                    currentStorage.items != null && currentStorage.items.Contains(item))
+                {
+                    // A transfer between two hearts pauses the egg in the target storage and
+                    // then raises a removal event on the source storage.
+                    inAnotherHeart = true;
+                }
+            }
+
+            SetEggStasis(item, inThisHeart || inAnotherHeart);
+        }
+
+        private void ReleaseAllEggStasis()
+        {
+            if (storage == null || storage.items == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < storage.items.Count; i++)
+            {
+                GameObject item = storage.items[i];
+                if (item != null && IsEgg(item))
+                {
+                    SetEggStasis(item, false);
+                }
+            }
+        }
+
+        private static bool IsEgg(GameObject item)
+        {
+            return item.HasTag(GameTags.Egg) || item.HasTag(GameTags.IncubatableEgg);
+        }
+
+        private static void SetEggStasis(GameObject egg, bool frozen)
+        {
+            AmountInstance incubation = Db.Get().Amounts.Incubation.Lookup(egg);
+            AmountInstance viability = Db.Get().Amounts.Viability.Lookup(egg);
+
+            if (frozen)
+            {
+                if (incubation != null)
+                {
+                    incubation.Deactivate();
+                }
+
+                if (viability != null)
+                {
+                    viability.Deactivate();
+                }
+            }
+            else
+            {
+                if (incubation != null)
+                {
+                    incubation.Activate();
+                }
+
+                if (viability != null)
+                {
+                    viability.Activate();
+                }
             }
         }
 
