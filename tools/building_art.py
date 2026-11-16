@@ -1120,12 +1120,19 @@ def bottler_image() -> Image.Image:
 
 
 def bottler_icon(image: Image.Image) -> Image.Image:
-    """A square close-up of the filling chamber for the build menu."""
-    w, h = image.size
-    # image is 256x512 in the final world atlas; take the window/top section
-    crop = image.crop((0, int(h * 0.06), w, int(h * 0.06) + w))
+    """A compact full-machine icon for the build menu.
+
+    The world sprite is 1x2 (a tall machine), so using its natural aspect in the
+    square build-menu cell reads as a thin vertical sliver.  Keep the full
+    machine visible but compress its height: the icon shows the same bottler as
+    a squat unit that fills the menu cell, while the in-world sprite is
+    untouched.
+    """
+    bbox = image.getbbox()
+    crop = image.crop(bbox) if bbox else image.copy()
     icon = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
-    crop.thumbnail((256, 256), Image.LANCZOS)
+    # Preserve the painted width and squash the 1x2 height into a menu-friendly block.
+    crop = crop.resize((248, 240), Image.LANCZOS)
     icon.paste(crop, ((256 - crop.width) // 2, (256 - crop.height) // 2))
     return icon
 
