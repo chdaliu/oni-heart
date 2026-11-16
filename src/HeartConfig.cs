@@ -17,8 +17,10 @@ namespace ONIHeart
                 "oniheart_kanim",
                 1000,
                 120f,
-                new float[] { 1600f },
-                new string[] { "BuildableRaw&Metal" },
+                // Two construction ingredients: rock/mineral first, then metal ore or refined metal.
+                // Each entry in Materials is a '&'-separated union of accepted material tags.
+                new float[] { 1200f, 400f },
+                new string[] { "BuildableRaw", "Metal&RefinedMetal" },
                 9999f,
                 BuildLocationRule.OnFloor,
                 TUNING.BUILDINGS.DECOR.NONE,
