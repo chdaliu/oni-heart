@@ -11,6 +11,7 @@
 ### 元素之心
 - 4x4，建造材料同时需要岩石/原矿（砂岩、花岗岩、火成岩等）和金属（金属矿石如铜矿、铁矿，或精炼金属）。
 - 正常建筑：占用 `ObjectLayer.Building`、需要地基，会被普通建筑和地形阻挡。
+- 支持跨星球连接：终端、接口和装卸建筑可以连接任意星球的元素之心；每颗心仍独立保存自己的内容。
 - 提供类似容器箱子的材料勾选列表，包括种子、衣服、蛋、食物等所有固体物品；气体/液体不进入该列表，需要通过元素接口输入/输出。
 - 有工作优先级；在列表中勾选材料后，复制人会像往箱子存放物品一样，把对应固体搬运进元素之心。
 - 允许被液体淹没，不会出现“淹没”停机状态。
@@ -36,7 +37,7 @@
 - **元素终端机（气化）**
 - **元素终端机（温控）**
 
-选中终端后，底部按钮区会出现当前连接的元素之心名称按钮，点击可切换连接的同世界元素之心。终端只控制所连接元素之心的对应操作；元素之心本身不再显示处理面板。
+选中终端后，底部按钮区会出现当前连接的元素之心名称按钮，点击可在所有元素之心之间循环切换：本星球的排在前面，切换到其他星球的心时名称后会显示星球名。终端只控制所连接元素之心的对应操作；元素之心本身不再显示处理面板。
 
 ### 配方式处理
 
@@ -118,7 +119,7 @@
 - **气体/液体输出接口**：只有一个输出管道口；必须在过滤列表中勾选一种要输出的元素（只能单选），未选择时不会输出。新建的输出接口默认不选择任何元素。
 - **电力接口**：只有元素之心切换按钮；它是一根双向连接，电网富余时存入、缺电时取出。
 
-接口默认自动连接最近的、同世界的元素之心；也可以手动切换。切换目标或物质后立即生效。
+接口默认自动连接本星球最近的元素之心；也可以手动切换到其他星球的心。切换目标或物质后立即生效。
 
 每个输入接口都有自己独立的 Storage 缓冲，再由 `PortTransfer` 转入元素之心；因此多个同参数接口不会共享容量或输入额度，例如两个 10kg 水输入接口可以各自输入 10kg。输出接口各自从元素之心的无限存量取用，互不抢占容量，实际流量只受各自管道容量限制。
 
@@ -127,8 +128,8 @@
 ## 使用流程
 
 1. **收集固体**：建造元素之心后，在右侧材料列表里勾选要收集的固体品类；复制人会像往箱子搬东西一样送入元素之心。
-2. **配置处理**：建造元素终端机，它会自动连接最近的元素之心。选中终端后，右侧“配置”页会列出这一类操作中已经出现过的材料的合法配方（当前库存或待处理数量也算已出现）；没遇到过的材料会在第一次出现后解锁。点开配方详情，在底部控制栏里设置目标数量/速率。温控终端则在配置页选择一种液体/气体元素、开启恒温并设置目标温度。属性面板状态会显示当前配方类型和连接的元素之心。
-3. **切换目标**：选中终端机、元素接口、装瓶器、卸瓶器或装载器后，点击底部按钮区的元素之心名称按钮，在该世界的元素之心之间循环切换；配方面板会立即跟随新目标刷新。
+2. **配置处理**：建造元素终端机，它会自动连接本星球最近的元素之心。选中终端后，右侧“配置”页会列出这一类操作中已经出现过的材料的合法配方（当前库存或待处理数量也算已出现）；没遇到过的材料会在第一次出现后解锁。点开配方详情，在底部控制栏里设置目标数量/速率。温控终端则在配置页选择一种液体/气体元素、开启恒温并设置目标温度。属性面板状态会显示当前配方类型和连接的元素之心。
+3. **切换目标**：选中终端机、元素接口、装瓶器、卸瓶器或装载器后，点击底部按钮区的元素之心名称按钮，在所有星球的元素之心之间循环切换（本星球优先，异星球会显示星球名）；配方面板会立即跟随新目标刷新。
 4. **接入气液电**：分别建造气体/液体输入输出接口和电力接口。输入接口无需选择物质，会自动接收管道内容；输出接口在过滤列表中单选一种输出元素。输入接口先写入自己的缓冲，再送入元素之心；输出接口直接从元素之心取用。
 5. **手动装瓶/卸瓶/装载**：装瓶器从元素之心取物生成瓶装/元素块；卸瓶器把复制人送来的瓶子转入元素之心；手动装载器把固体/物品转入元素之心。装瓶器和卸瓶器使用来源标记避免同元素之心循环。
 6. **查看状态**：元素之心的描述会显示储存质量、内部电力，以及已连接的终端/接口/装瓶器数量；终端的描述会显示“运行中/等待材料/待机/未连接”。
@@ -242,8 +243,9 @@ An Oxygen Not Included mod that adds a 4x4 building, the **Heart of Elements**, 
 ## Features
 
 ### Heart of Elements
-- 4x4 building; construction material is raw mineral (sandstone, granite, igneous rock, etc.) or metal ore (copper ore, iron ore, etc.).
+- 4x4 building; construction requires both rock/raw mineral (sandstone, granite, igneous rock, etc.) and metal (metal ore such as copper ore or iron ore, or refined metal).
 - Normal building: occupies `ObjectLayer.Building`, requires a foundation, and is blocked by normal buildings and terrain.
+- Cross-planet linking: terminals, interfaces, and manual buildings can connect to a heart on any planet; each heart still keeps its own independent contents.
 - Provides a storage-bin-like material checklist covering all solid item categories such as seeds, clothing, eggs, and food. Gases/liquids are not in the checklist and must enter/leave through element interfaces.
 - Has work priority; once materials are checked, duplicants haul the matching solids into the heart like they would into a storage bin.
 - Can be submerged in liquid without entering a "flooded" shutdown state.
@@ -269,7 +271,7 @@ Adds five 2x2 science buildings under the **Stations** category:
 - **Element Terminal (Vaporize)**
 - **Element Terminal (Thermostat)**
 
-When a terminal is selected, a button showing the connected heart's name appears in the bottom button area. Click it to cycle through same-world hearts. A terminal only controls its connected heart's matching operation; the heart itself no longer shows a processing panel.
+When a terminal is selected, a button showing the connected heart's name appears in the bottom button area. Click it to cycle through all hearts, with the current planet's hearts first; a heart on another planet is shown with its planet name. A terminal only controls its connected heart's matching operation; the heart itself no longer shows a processing panel.
 
 ### Recipe processing
 
@@ -351,7 +353,7 @@ When an element interface is selected, the properties panel shows the connected 
 - **Gas/liquid output interfaces**: have only one output pipe port; you must select exactly one output element in the filter list (single-select). Nothing is output when no element is selected. Newly built output interfaces start with no element selected.
 - **Power interface**: only has the heart switch button; it is a bidirectional connection that stores surplus grid power and supplies power when the grid is short.
 
-Interfaces automatically connect to the nearest same-world heart; you can also switch manually. Changes take effect immediately.
+Interfaces automatically connect to the nearest heart on their own planet; you can also switch manually to a heart on another planet. Changes take effect immediately.
 
 Each input interface has its own Storage buffer, and `PortTransfer` moves items into the heart, so multiple interfaces with the same settings do not share capacity or input quota (for example, two 10 kg water input interfaces can each input 10 kg). Output interfaces each draw from the heart's infinite stock without competing for capacity; actual flow is limited only by their pipe capacity.
 
@@ -360,8 +362,8 @@ For power, all power interfaces are connected through the heart's shared power p
 ## Usage flow
 
 1. **Collect solids**: after building the Heart of Elements, check the solid categories to collect in the material list; duplicants haul them in like a storage bin.
-2. **Configure processing**: build an Element Terminal; it automatically connects to the nearest heart. Select the terminal, and the Config tab lists valid recipes whose input materials have already appeared (current inventory or pending amounts count as appeared); materials not yet encountered unlock after their first appearance. Open a recipe detail and set the target amount/rate in the bottom control row. For a thermostat, choose one liquid/gas element, enable temperature control, and set the target temperature. The properties panel shows the current recipe type and connected heart.
-3. **Switch targets**: select a terminal, element interface, bottler, unbottler, or loader, then click the heart-name button in the bottom button area to cycle through same-world hearts. The recipe panel refreshes immediately.
+2. **Configure processing**: build an Element Terminal; it automatically connects to the nearest heart on its own planet. Select the terminal, and the Config tab lists valid recipes whose input materials have already appeared (current inventory or pending amounts count as appeared); materials not yet encountered unlock after their first appearance. Open a recipe detail and set the target amount/rate in the bottom control row. For a thermostat, choose one liquid/gas element, enable temperature control, and set the target temperature. The properties panel shows the current recipe type and connected heart.
+3. **Switch targets**: select a terminal, element interface, bottler, unbottler, or loader, then click the heart-name button in the bottom button area to cycle through hearts on all planets (current planet first; remote hearts show their planet name). The recipe panel refreshes immediately.
 4. **Connect gas/liquid/power**: build gas/liquid input and output interfaces and power interfaces. Input interfaces need no substance selection and automatically accept pipe contents; output interfaces use a single-select filter list. Input interfaces first write to their own buffer and then send to the heart; output interfaces draw directly from the heart.
 5. **Manual bottling/unbottling/loading**: the bottler takes material from the heart and produces bottles/element chunks on demand; the unbottler transfers delivered bottles into the heart; the manual loader transfers solids/items into the heart. Bottler/unbottler use source tags to prevent same-heart loops.
 6. **Check status**: the heart's description shows stored mass, internal power, and connected terminal/interface/bottler counts; the terminal description shows "Running / Waiting for material / Idle / Disconnected".

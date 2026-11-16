@@ -18,6 +18,9 @@ namespace ONIHeart
         public static readonly List<ManualBottleLink> All = new List<ManualBottleLink>();
 
         [Serialize]
+        public int targetHeartWorldId = -1;
+
+        [Serialize]
         public int targetHeartCell = -1;
 
         private HeartOfElements heart;
@@ -55,51 +58,27 @@ namespace ONIHeart
 
         public void ResolveHeart(bool force)
         {
-            if (!force && heart != null && heart.Storage != null &&
-                heart.GetBottomLeftCell() == targetHeartCell)
+            int worldId = this.GetMyWorldId();
+            // Legacy saves only stored a cell; assume it belonged to the device's own world.
+            if (targetHeartWorldId < 0 && targetHeartCell >= 0)
+            {
+                targetHeartWorldId = worldId;
+            }
+
+            if (!force && HeartLink.Matches(heart, targetHeartWorldId, targetHeartCell))
             {
                 return;
             }
 
-            int worldId = this.GetMyWorldId();
             HeartOfElements previous = heart;
-            HeartOfElements found = null;
-
-            if (targetHeartCell >= 0)
+            HeartOfElements found = HeartLink.Find(targetHeartWorldId, targetHeartCell);
+            // Keep waiting for an explicitly selected remote heart instead of overwriting it.
+            if (found == null && (targetHeartWorldId < 0 || targetHeartWorldId == worldId))
             {
-                for (int i = 0; i < HeartOfElements.All.Count; i++)
-                {
-                    HeartOfElements candidate = HeartOfElements.All[i];
-                    if (candidate != null && candidate.GetMyWorldId() == worldId &&
-                        candidate.GetBottomLeftCell() == targetHeartCell)
-                    {
-                        found = candidate;
-                        break;
-                    }
-                }
-            }
-
-            if (found == null)
-            {
-                float bestDistance = float.MaxValue;
-                for (int i = 0; i < HeartOfElements.All.Count; i++)
-                {
-                    HeartOfElements candidate = HeartOfElements.All[i];
-                    if (candidate == null || candidate.GetMyWorldId() != worldId)
-                    {
-                        continue;
-                    }
-
-                    float distance = (candidate.transform.GetPosition() - transform.GetPosition()).sqrMagnitude;
-                    if (distance < bestDistance)
-                    {
-                        bestDistance = distance;
-                        found = candidate;
-                    }
-                }
-
+                found = HeartLink.NearestInWorld(worldId, transform.GetPosition());
                 if (found != null)
                 {
+                    targetHeartWorldId = found.GetMyWorldId();
                     targetHeartCell = found.GetBottomLeftCell();
                 }
             }
@@ -113,35 +92,24 @@ namespace ONIHeart
 
         public void CycleHeart()
         {
-            List<HeartOfElements> hearts = new List<HeartOfElements>();
-            int worldId = this.GetMyWorldId();
-            for (int i = 0; i < HeartOfElements.All.Count; i++)
+            HeartOfElements next = HeartLink.NextInCycle(
+                this.GetMyWorldId(), targetHeartWorldId, targetHeartCell);
+            if (next == null)
             {
-                HeartOfElements candidate = HeartOfElements.All[i];
-                if (candidate != null && candidate.GetMyWorldId() == worldId)
-                {
-                    hearts.Add(candidate);
-                }
-            }
-
-            if (hearts.Count == 0)
-            {
+                targetHeartWorldId = -1;
                 targetHeartCell = -1;
                 heart = null;
                 RefreshUI();
                 return;
             }
 
-            hearts.Sort((a, b) => a.GetBottomLeftCell().CompareTo(b.GetBottomLeftCell()));
-            int index = hearts.FindIndex(h => h.GetBottomLeftCell() == targetHeartCell);
-            HeartOfElements next = hearts[(index + 1) % hearts.Count];
+            targetHeartWorldId = next.GetMyWorldId();
             targetHeartCell = next.GetBottomLeftCell();
             heart = next;
             RefreshUI();
         }
 
-        public string HeartName =>
-            heart != null ? heart.gameObject.GetProperName() : STRINGS.UI.ONIHEART.NO_TARGET;
+        public string HeartName => HeartLink.DisplayName(heart, this.GetMyWorldId());
 
         private void RefreshUI()
         {
@@ -181,14 +149,14 @@ namespace ONIHeart
     /// <summary>Tags items with their source/target to block a bottler -> unbottler loop for the same heart.</summary>
     public static class ManualLoopGuard
     {
-        public static Tag StoredTag(int heartCell)
+        public static Tag StoredTag(int heartWorldId, int heartCell)
         {
-            return TagManager.Create("ONIHeartStored_" + heartCell);
+            return HeartLink.StoredTag(heartWorldId, heartCell);
         }
 
-        public static Tag BottleSourceTag(int heartCell)
+        public static Tag BottleSourceTag(int heartWorldId, int heartCell)
         {
-            return TagManager.Create("ONIHeartBottleSource_" + heartCell);
+            return HeartLink.BottleSourceTag(heartWorldId, heartCell);
         }
     }
 
@@ -355,7 +323,7 @@ namespace ONIHeart
             if (prefabId != null)
             {
                 prefabId.AddTag(phase == ManualBottlePhase.Gas ? GameTags.GasSource : GameTags.LiquidSource);
-                prefabId.AddTag(ManualLoopGuard.BottleSourceTag(link.Heart.GetBottomLeftCell()), true);
+                prefabId.AddTag(ManualLoopGuard.BottleSourceTag(link.Heart.GetMyWorldId(), link.Heart.GetBottomLeftCell()), true);
             }
         }
 
@@ -422,7 +390,7 @@ namespace ONIHeart
 
                 if (link != null && link.Heart != null)
                 {
-                    prefabId.AddTag(ManualLoopGuard.BottleSourceTag(link.Heart.GetBottomLeftCell()), true);
+                    prefabId.AddTag(ManualLoopGuard.BottleSourceTag(link.Heart.GetMyWorldId(), link.Heart.GetBottomLeftCell()), true);
                 }
             }
 
@@ -519,6 +487,7 @@ namespace ONIHeart
         private Storage storage;
         private TreeFilterable filterable;
         private FilteredStorage filteredStorage;
+        private int lastHeartWorldId = int.MinValue;
         private int lastHeartCell = int.MinValue;
         private Tag storedTag;
         private Tag bottleSourceTag;
@@ -611,8 +580,9 @@ namespace ONIHeart
 
         private void UpdateLoopTags()
         {
+            int heartWorldId = link != null && link.Heart != null ? link.Heart.GetMyWorldId() : -1;
             int heartCell = link != null && link.Heart != null ? link.Heart.GetBottomLeftCell() : -1;
-            if (heartCell == lastHeartCell)
+            if (heartWorldId == lastHeartWorldId && heartCell == lastHeartCell)
             {
                 return;
             }
@@ -629,24 +599,25 @@ namespace ONIHeart
                     filteredStorage.RemoveForbiddenTag(bottleSourceTag);
                 }
 
-                if (heartCell >= 0)
+                if (heartWorldId >= 0 && heartCell >= 0)
                 {
                     if (link != null && link.Heart != null)
                     {
                         link.Heart.TagAllItems();
                     }
 
-                    storedTag = ManualLoopGuard.StoredTag(heartCell);
+                    storedTag = ManualLoopGuard.StoredTag(heartWorldId, heartCell);
                     filteredStorage.AddForbiddenTag(storedTag);
 
                     if (unbottle)
                     {
-                        bottleSourceTag = ManualLoopGuard.BottleSourceTag(heartCell);
+                        bottleSourceTag = ManualLoopGuard.BottleSourceTag(heartWorldId, heartCell);
                         filteredStorage.AddForbiddenTag(bottleSourceTag);
                     }
                 }
             }
 
+            lastHeartWorldId = heartWorldId;
             lastHeartCell = heartCell;
         }
 

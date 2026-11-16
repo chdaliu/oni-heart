@@ -15,7 +15,7 @@ namespace ONIHeart
 
     /// <summary>
     /// Shared connection state for all interface buildings. Responsibilities:
-    /// 1. Find a heart in the same world.
+    /// 1. Find the target heart (same world by default, any world after manual switching).
     /// 2. Point the input/output components at that heart's Storage.
     /// 3. Provide a target-heart switch in the property panel button area.
     /// </summary>
@@ -23,6 +23,9 @@ namespace ONIHeart
     public sealed class HeartPort : KMonoBehaviour, ISaveLoadable, ISim1000ms, IGameObjectEffectDescriptor
     {
         public static readonly List<HeartPort> All = new List<HeartPort>();
+
+        [Serialize]
+        public int targetHeartWorldId = -1;
 
         [Serialize]
         public int targetHeartCell = -1;
@@ -114,51 +117,29 @@ namespace ONIHeart
 
         public void ResolveTarget(bool force)
         {
-            if (!force && heart != null && heart.gameObject != null &&
-                heart.Storage != null && heart.GetBottomLeftCell() == targetHeartCell)
+            int worldId = this.GetMyWorldId();
+            // Legacy saves only stored a cell; assume it belonged to the device's own world.
+            if (targetHeartWorldId < 0 && targetHeartCell >= 0)
+            {
+                targetHeartWorldId = worldId;
+            }
+
+            if (!force && HeartLink.Matches(heart, targetHeartWorldId, targetHeartCell))
             {
                 return;
             }
 
-            int worldId = this.GetMyWorldId();
             HeartOfElements previous = heart;
-            HeartOfElements found = null;
+            HeartOfElements found = HeartLink.Find(targetHeartWorldId, targetHeartCell);
 
-            if (targetHeartCell >= 0)
+            // A missing local target may fall back to another local heart, but keep waiting for
+            // an explicitly selected remote heart instead of overwriting the player's choice.
+            if (found == null && (targetHeartWorldId < 0 || targetHeartWorldId == worldId))
             {
-                for (int i = 0; i < HeartOfElements.All.Count; i++)
-                {
-                    HeartOfElements candidate = HeartOfElements.All[i];
-                    if (candidate != null && candidate.GetMyWorldId() == worldId &&
-                        candidate.GetBottomLeftCell() == targetHeartCell)
-                    {
-                        found = candidate;
-                        break;
-                    }
-                }
-            }
-
-            if (found == null)
-            {
-                float bestDistance = float.MaxValue;
-                for (int i = 0; i < HeartOfElements.All.Count; i++)
-                {
-                    HeartOfElements candidate = HeartOfElements.All[i];
-                    if (candidate == null || candidate.GetMyWorldId() != worldId)
-                    {
-                        continue;
-                    }
-
-                    float distance = (candidate.transform.GetPosition() - transform.GetPosition()).sqrMagnitude;
-                    if (distance < bestDistance)
-                    {
-                        bestDistance = distance;
-                        found = candidate;
-                    }
-                }
-
+                found = HeartLink.NearestInWorld(worldId, transform.GetPosition());
                 if (found != null)
                 {
+                    targetHeartWorldId = found.GetMyWorldId();
                     targetHeartCell = found.GetBottomLeftCell();
                 }
             }
@@ -217,9 +198,11 @@ namespace ONIHeart
 
         public void CycleHeart()
         {
-            List<HeartOfElements> hearts = GetHeartsInWorld();
-            if (hearts.Count == 0)
+            HeartOfElements next = HeartLink.NextInCycle(
+                this.GetMyWorldId(), targetHeartWorldId, targetHeartCell);
+            if (next == null)
             {
+                targetHeartWorldId = -1;
                 targetHeartCell = -1;
                 heart = null;
                 ApplyTarget();
@@ -227,10 +210,7 @@ namespace ONIHeart
                 return;
             }
 
-            hearts.Sort((a, b) => a.GetBottomLeftCell().CompareTo(b.GetBottomLeftCell()));
-
-            int index = hearts.FindIndex(h => h.GetBottomLeftCell() == targetHeartCell);
-            HeartOfElements next = hearts[(index + 1) % hearts.Count];
+            targetHeartWorldId = next.GetMyWorldId();
             targetHeartCell = next.GetBottomLeftCell();
             heart = next;
             ApplyTarget();
@@ -361,31 +341,7 @@ namespace ONIHeart
             }
         }
 
-        public string HeartName
-        {
-            get
-            {
-                return heart != null
-                    ? heart.gameObject.GetProperName()
-                    : STRINGS.UI.ONIHEART.NO_TARGET;
-            }
-        }
-
-        private List<HeartOfElements> GetHeartsInWorld()
-        {
-            int worldId = this.GetMyWorldId();
-            List<HeartOfElements> hearts = new List<HeartOfElements>();
-            for (int i = 0; i < HeartOfElements.All.Count; i++)
-            {
-                HeartOfElements candidate = HeartOfElements.All[i];
-                if (candidate != null && candidate.GetMyWorldId() == worldId)
-                {
-                    hearts.Add(candidate);
-                }
-            }
-
-            return hearts;
-        }
+        public string HeartName => HeartLink.DisplayName(heart, this.GetMyWorldId());
 
         private List<SimHashes> GetSubstanceElements()
         {

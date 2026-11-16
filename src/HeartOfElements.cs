@@ -203,7 +203,7 @@ namespace ONIHeart
                 return;
             }
 
-            prefabId.AddTag(TagManager.Create("ONIHeartStored_" + GetBottomLeftCell()), true);
+            prefabId.AddTag(HeartLink.StoredTag(this.GetMyWorldId(), GetBottomLeftCell()), true);
         }
 
         /// <summary>

@@ -19,6 +19,7 @@ namespace ONIHeart
                         "一个来自元素裂隙的奇异建筑。它能够无限制地收容固体、液体和气体，并将它们分别保存。\n\n" +
                         "储存在其中的食物不会腐败，固体会被密封，蛋类不会孵化。内部电力同样可以无限储存且不会损耗。\n\n" +
                         "使用流程：直接用材料过滤列表让复制人搬入固体；用元素接口输入/输出气体、液体和电力；用元素终端机选择这个元素之心并配置分解/固化/液化/气化配方；用元素终端机底部按钮区的元素之心名称按钮切换目标。手动装瓶器用于瓶装气体/液体的装入与提取。\n\n" +
+                        "终端、接口和装卸建筑可以连接任意星球的元素之心；自动连接优先选择本星球最近的心，跨星球目标需要手动切换。每颗元素之心仍独立储存自己的内容。\n\n" +
                         "元素之心不会被融化或破坏，只能通过拆除指令移除。拆除时固体直接掉落，气体和液体以瓶装形式保留，内部电力清空。";
                     public static LocString EFFECT =
                         "无限容量存储\n食物保鲜\n固体密封\n蛋类休眠\n轻微照明\n大量装饰\n终端配置分解/相变\n接口输入输出气液电力\n相变热量转为电力\n电力无损耗";
@@ -31,7 +32,7 @@ namespace ONIHeart
                     public static LocString DESC =
                         "将气体管道中的气体送入所选元素之心。\n\n" +
                         "输入接口不限制元素类型，管道送来什么气体就自动存入元素之心。\n" +
-                        "底部按钮区显示当前连接的元素之心，点击可切换。";
+                        "底部按钮区显示当前连接的元素之心，点击可切换；也可以连接其他星球的心。";
                     public static LocString EFFECT = "气体输入\n自动接收所有气体\n无限吞吐\n无热量交换";
                     public static LocString FLAVOR = "\"吸气，然后永远不呼气。\"";
                 }
@@ -42,7 +43,7 @@ namespace ONIHeart
                     public static LocString DESC =
                         "从所选元素之心向气体管道输出气体。\n\n" +
                         "在侧边过滤列表中勾选一种要输出的气体（只能单选）。\n" +
-                        "底部按钮区显示当前连接的元素之心，点击可切换。";
+                        "底部按钮区显示当前连接的元素之心，点击可切换；也可以连接其他星球的心。";
                     public static LocString EFFECT = "气体输出\n单一元素输出\n无限供应\n无热量交换";
                     public static LocString FLAVOR = "\"它记得每一种气体的味道。\"";
                 }
@@ -53,7 +54,7 @@ namespace ONIHeart
                     public static LocString DESC =
                         "将液体管道中的液体送入所选元素之心。\n\n" +
                         "输入接口不限制元素类型，管道送来什么液体就自动存入元素之心。\n" +
-                        "底部按钮区显示当前连接的元素之心，点击可切换。";
+                        "底部按钮区显示当前连接的元素之心，点击可切换；也可以连接其他星球的心。";
                     public static LocString EFFECT = "液体输入\n自动接收所有液体\n无限吞吐\n无热量交换";
                     public static LocString FLAVOR = "\"连海洋也装得下。\"";
                 }
@@ -64,7 +65,7 @@ namespace ONIHeart
                     public static LocString DESC =
                         "从所选元素之心向液体管道输出液体。\n\n" +
                         "在侧边过滤列表中勾选一种要输出的液体（只能单选）。\n" +
-                        "底部按钮区显示当前连接的元素之心，点击可切换。";
+                        "底部按钮区显示当前连接的元素之心，点击可切换；也可以连接其他星球的心。";
                     public static LocString EFFECT = "液体输出\n单一元素输出\n无限供应\n无热量交换";
                     public static LocString FLAVOR = "\"细水长流，永无止境。\"";
                 }
@@ -131,7 +132,7 @@ namespace ONIHeart
                         "元素之心与电网之间的双向电力连接。\n\n" +
                         "所有电力接口共享元素之心的同一个电力池：一个接口接入的发电机可以给另一个接口的电网供电。\n\n" +
                         "电网有富余电力时存入元素之心；电网需要电力时从元素之心取出。\n\n" +
-                        "底部按钮区显示当前连接的元素之心，点击可切换。";
+                        "底部按钮区显示当前连接的元素之心，点击可切换；也可以连接其他星球的心。";
                     public static LocString EFFECT = "双向电力连接\n无损耗\n无热量产生";
                     public static LocString FLAVOR = "\"心跳即为电流。\"";
                 }
@@ -253,7 +254,8 @@ namespace ONIHeart
                     "终端机负责配置分解/固化/液化/气化/温控；接口负责气体、液体和电力输入输出；装瓶/卸瓶/装载器负责手动装卸。";
                 public static LocString MANUAL_TARGET = "目标：{0}";
                 public static LocString TARGET = "元素之心：{0}";
-                public static LocString TARGET_TOOLTIP = "点击切换连接的元素之心";
+                public static LocString TARGET_ON_WORLD = "{0}（{1}）";
+                public static LocString TARGET_TOOLTIP = "点击切换连接的元素之心；本星球的心优先，也可以切换到其他星球的心";
                 public static LocString NO_TARGET = "未连接";
                 public static LocString SUBSTANCE = "物质：{0}";
                 public static LocString SUBSTANCE_TOOLTIP = "勾选要输出的物质（只能单选）";
