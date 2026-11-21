@@ -158,6 +158,17 @@ namespace ONIHeart
         [Serialize]
         private Dictionary<Tag, float> vaporizePending = new Dictionary<Tag, float>();
 
+        // "Continuous" (vanilla Forever) recipes have no target amount: they keep processing
+        // whenever their input material is available, until switched off.
+        [Serialize]
+        private Dictionary<Tag, bool> solidifyContinuous = new Dictionary<Tag, bool>();
+
+        [Serialize]
+        private Dictionary<Tag, bool> liquefyContinuous = new Dictionary<Tag, bool>();
+
+        [Serialize]
+        private Dictionary<Tag, bool> vaporizeContinuous = new Dictionary<Tag, bool>();
+
         private HeartOfElements heart;
         private readonly object pendingLock = new object();
 
@@ -187,6 +198,21 @@ namespace ONIHeart
             if (vaporizePending == null)
             {
                 vaporizePending = new Dictionary<Tag, float>();
+            }
+
+            if (solidifyContinuous == null)
+            {
+                solidifyContinuous = new Dictionary<Tag, bool>();
+            }
+
+            if (liquefyContinuous == null)
+            {
+                liquefyContinuous = new Dictionary<Tag, bool>();
+            }
+
+            if (vaporizeContinuous == null)
+            {
+                vaporizeContinuous = new Dictionary<Tag, bool>();
             }
         }
 
@@ -218,9 +244,16 @@ namespace ONIHeart
             {
                 NormalizeDictionaries();
                 Dictionary<Tag, float> map = GetPendingMap(operationKind);
+                Dictionary<Tag, bool> continuousMap = GetContinuousMap(operationKind);
                 if (map == null || !element.IsValid)
                 {
                     return;
+                }
+
+                // Entering an explicit amount (including 0) leaves continuous mode.
+                if (continuousMap != null)
+                {
+                    continuousMap.Remove(element);
                 }
 
                 if (amount <= 0.001f)
@@ -242,6 +275,60 @@ namespace ONIHeart
             }
         }
 
+        /// <summary>
+        /// Continuous recipes (the vanilla "Forever" mode) run whenever their input is available
+        /// and do not use a target amount.
+        /// </summary>
+        public bool IsContinuous(HeartProcessOperation operationKind, Tag element)
+        {
+            lock (pendingLock)
+            {
+                NormalizeDictionaries();
+                Dictionary<Tag, bool> map = GetContinuousMap(operationKind);
+                if (map == null || !element.IsValid)
+                {
+                    return false;
+                }
+
+                bool value;
+                return map.TryGetValue(element, out value) && value;
+            }
+        }
+
+        public void SetContinuous(HeartProcessOperation operationKind, Tag element, bool continuous)
+        {
+            bool markDiscovered = false;
+            lock (pendingLock)
+            {
+                NormalizeDictionaries();
+                Dictionary<Tag, float> pendingMap = GetPendingMap(operationKind);
+                Dictionary<Tag, bool> continuousMap = GetContinuousMap(operationKind);
+                if (pendingMap == null || continuousMap == null || !element.IsValid)
+                {
+                    return;
+                }
+
+                if (continuous)
+                {
+                    continuousMap[element] = true;
+                    // Continuous and finite amounts are mutually exclusive.
+                    pendingMap.Remove(element);
+                    markDiscovered = true;
+                }
+                else
+                {
+                    continuousMap.Remove(element);
+                    // Vanilla Forever turns the queue count back to 0 when switched off.
+                    pendingMap.Remove(element);
+                }
+            }
+
+            if (markDiscovered)
+            {
+                DiscoverElement(ElementLoader.GetElement(element));
+            }
+        }
+
         private Dictionary<Tag, float> GetPendingMap(HeartProcessOperation operationKind)
         {
             switch (operationKind)
@@ -257,6 +344,21 @@ namespace ONIHeart
             }
         }
 
+        private Dictionary<Tag, bool> GetContinuousMap(HeartProcessOperation operationKind)
+        {
+            switch (operationKind)
+            {
+                case HeartProcessOperation.Solidify:
+                    return solidifyContinuous;
+                case HeartProcessOperation.Liquefy:
+                    return liquefyContinuous;
+                case HeartProcessOperation.Vaporize:
+                    return vaporizeContinuous;
+                default:
+                    return null;
+            }
+        }
+
         public List<Tag> GetPendingElements(HeartProcessOperation operationKind)
         {
             List<Tag> result = new List<Tag>();
@@ -264,11 +366,13 @@ namespace ONIHeart
             {
                 NormalizeDictionaries();
                 Dictionary<Tag, float> map = GetPendingMap(operationKind);
+                Dictionary<Tag, bool> continuousMap = GetContinuousMap(operationKind);
                 if (map == null)
                 {
                     return result;
                 }
 
+                HashSet<Tag> tags = new HashSet<Tag>();
                 foreach (KeyValuePair<Tag, float> pair in map)
                 {
                     if (pair.Value <= 0.001f)
@@ -284,8 +388,29 @@ namespace ONIHeart
                         continue;
                     }
 
-                    result.Add(pair.Key);
+                    tags.Add(pair.Key);
                 }
+
+                if (continuousMap != null)
+                {
+                    foreach (KeyValuePair<Tag, bool> pair in continuousMap)
+                    {
+                        if (!pair.Value)
+                        {
+                            continue;
+                        }
+
+                        Element element = ElementLoader.GetElement(pair.Key);
+                        if (element == null || !IsValidInput(element, operationKind))
+                        {
+                            continue;
+                        }
+
+                        tags.Add(pair.Key);
+                    }
+                }
+
+                result.AddRange(tags);
             }
 
             result.Sort((a, b) => string.CompareOrdinal(a.ProperName(), b.ProperName()));
@@ -613,20 +738,48 @@ namespace ONIHeart
         {
             lock (pendingLock)
             {
+                NormalizeDictionaries();
                 Dictionary<Tag, float> map = GetPendingMap(operationKind);
-                if (map == null || map.Count == 0)
+                Dictionary<Tag, bool> continuousMap = GetContinuousMap(operationKind);
+                if (map == null)
                 {
                     return;
                 }
 
-                List<Tag> elements = new List<Tag>(map.Keys);
-                for (int i = 0; i < elements.Count; i++)
+                if (map.Count == 0 && (continuousMap == null || continuousMap.Count == 0))
                 {
-                    Tag tag = elements[i];
+                    return;
+                }
+
+                // A tag can be present in both maps after a save migration; continuous wins and
+                // is processed exactly once.
+                HashSet<Tag> tags = new HashSet<Tag>(map.Keys);
+                if (continuousMap != null)
+                {
+                    foreach (KeyValuePair<Tag, bool> pair in continuousMap)
+                    {
+                        if (pair.Value)
+                        {
+                            tags.Add(pair.Key);
+                        }
+                    }
+                }
+
+                foreach (Tag tag in tags)
+                {
+                    bool continuous = continuousMap != null &&
+                                      continuousMap.TryGetValue(tag, out bool continuousValue) &&
+                                      continuousValue;
                     float remaining;
-                    if (!map.TryGetValue(tag, out remaining) || remaining <= 0.001f)
+                    bool hasPending = map.TryGetValue(tag, out remaining) && remaining > 0.001f;
+                    if (!continuous && !hasPending)
                     {
                         map.Remove(tag);
+                        if (continuousMap != null)
+                        {
+                            continuousMap.Remove(tag);
+                        }
+
                         continue;
                     }
 
@@ -634,6 +787,11 @@ namespace ONIHeart
                     if (sourceElement == null || !IsValidInput(sourceElement, operationKind))
                     {
                         map.Remove(tag);
+                        if (continuousMap != null)
+                        {
+                            continuousMap.Remove(tag);
+                        }
+
                         continue;
                     }
 
@@ -643,7 +801,8 @@ namespace ONIHeart
                         continue;
                     }
 
-                    float mass = Mathf.Min(CONVERSION_RATE_KG_PER_SECOND * dt, Mathf.Min(remaining, source.Mass));
+                    float available = continuous ? source.Mass : Mathf.Min(remaining, source.Mass);
+                    float mass = Mathf.Min(CONVERSION_RATE_KG_PER_SECOND * dt, available);
                     if (mass <= 0.0001f)
                     {
                         continue;
@@ -653,6 +812,12 @@ namespace ONIHeart
                     if (processed <= 0.0001f)
                     {
                         // Not enough stored power to absorb the required heat; retry when power is available.
+                        continue;
+                    }
+
+                    if (continuous)
+                    {
+                        // Continuous recipes have no remaining amount to track.
                         continue;
                     }
 
@@ -1107,10 +1272,18 @@ namespace ONIHeart
         /// <summary>
         /// Elements that can be assigned to a thermostat terminal. A thermostat terminal can
         /// control several elements at the same time, and each element has its own target and switch.
+        /// Only materials that have already appeared in this save (discovered, stored in the heart,
+        /// configured for conversion, or enabled on this terminal) are listed.
         /// </summary>
         public List<Tag> GetThermostatCandidates(HeartTerminal terminal)
         {
-            List<Tag> result = new List<Tag>();
+            HashSet<Tag> appeared = CollectAppearedInputs();
+            List<Tag> enabled = terminal != null
+                ? terminal.GetEnabledThermostatElements()
+                : new List<Tag>();
+            bool canCheckDiscovery = DiscoveredResources.Instance != null;
+            HashSet<Tag> resultSet = new HashSet<Tag>();
+
             for (int i = 0; i < ElementLoader.elements.Count; i++)
             {
                 Element element = ElementLoader.elements[i];
@@ -1121,12 +1294,29 @@ namespace ONIHeart
                     continue;
                 }
 
-                if (!result.Contains(element.tag))
+                if (canCheckDiscovery &&
+                    !DiscoveredResources.Instance.IsDiscovered(element.tag) &&
+                    !appeared.Contains(element.tag) &&
+                    !enabled.Contains(element.tag))
                 {
-                    result.Add(element.tag);
+                    continue;
+                }
+
+                resultSet.Add(element.tag);
+            }
+
+            // Keep configured elements visible even if their stable range changed or their
+            // material is temporarily absent, so the player can always adjust or switch them off.
+            for (int i = 0; i < enabled.Count; i++)
+            {
+                Element element = ElementLoader.GetElement(enabled[i]);
+                if (element != null && !element.disabled)
+                {
+                    resultSet.Add(enabled[i]);
                 }
             }
 
+            List<Tag> result = new List<Tag>(resultSet);
             result.Sort((a, b) => string.CompareOrdinal(a.ProperName(), b.ProperName()));
             return result;
         }
@@ -1213,6 +1403,14 @@ namespace ONIHeart
                     primary.SetMassTemperature(primary.Mass, targetKelvin);
                     heart.StorePower(-heat);
                 }
+            }
+        }
+
+        public void CollectDescriptors(GameObject go, List<Descriptor> descriptors)
+        {
+            if (descriptors != null)
+            {
+                descriptors.AddRange(GetDescriptors(go));
             }
         }
 

@@ -413,6 +413,14 @@ namespace ONIHeart
                 0.5f);
         }
 
+        public void CollectDescriptors(GameObject go, List<Descriptor> descriptors)
+        {
+            if (descriptors != null)
+            {
+                descriptors.AddRange(GetDescriptors(go));
+            }
+        }
+
         public List<Descriptor> GetDescriptors(GameObject go)
         {
             List<Descriptor> descriptors = new List<Descriptor>();

@@ -486,6 +486,13 @@ namespace ONIHeart
             float value = binding.isRate
                 ? processor.DecomposeRate
                 : processor.GetPending(operation, binding.element);
+
+            if (!binding.isRate && processor.IsContinuous(operation, binding.element))
+            {
+                binding.countLabel.text = STRINGS.UI.ONIHEART.CONTINUOUS_STATUS;
+                return;
+            }
+
             binding.countLabel.text = value.ToString("0.##");
         }
 
@@ -559,6 +566,8 @@ namespace ONIHeart
         private KNumberInputField amountInput;
         private MultiToggle decrement;
         private MultiToggle increment;
+        private KButton continuousButton;
+        private GameObject continuousIcon;
         private Transform controlsQueue;
         private Transform controlsBox;
         private GameObject sliderRow;
@@ -627,11 +636,13 @@ namespace ONIHeart
                     UpdateSliderLabel();
                 }
             }
-            else if (amountInput != null && amountInput.field != null &&
+            else if (!IsContinuous && amountInput != null && amountInput.field != null &&
                      !amountInput.field.isFocused && !Mathf.Approximately(value, amountInput.currentValue))
             {
                 amountInput.SetAmount(value);
             }
+
+            RefreshContinuousState();
         }
 
         public void SetRecipe(HeartProcessor processor, HeartProcessOperation operation, Tag element, bool isRate)
@@ -675,8 +686,36 @@ namespace ONIHeart
             {
                 HideVanillaButton(vanillaScreen, "previousRecipeButton");
                 HideVanillaButton(vanillaScreen, "nextRecipeButton");
-                HideVanillaButton(vanillaScreen, "InfiniteButton");
+                // Keep the vanilla Forever button and the infinity icon shown inside the amount box;
+                // they are rewired to the heart's continuous mode below.
+                continuousButton = Traverse.Create(vanillaScreen).Field("InfiniteButton").GetValue<KButton>();
+                continuousIcon = Traverse.Create(vanillaScreen).Field("InfiniteIcon").GetValue<GameObject>();
                 Object.Destroy(vanillaScreen);
+            }
+
+            if (continuousButton == null)
+            {
+                Transform buttonTransform = transform.Find("Controls/InfiniteButton");
+                continuousButton = buttonTransform != null ? buttonTransform.GetComponent<KButton>() : null;
+            }
+
+            if (continuousIcon == null)
+            {
+                Transform iconTransform = transform.Find("Controls/Queue/Box/Infinite");
+                continuousIcon = iconTransform != null ? iconTransform.gameObject : null;
+            }
+
+            if (continuousButton != null)
+            {
+                continuousButton.ClearOnClick();
+                continuousButton.onClick += OnContinuousButtonClicked;
+
+                LocText buttonLabel = continuousButton.GetComponentInChildren<LocText>(true);
+                if (buttonLabel != null)
+                {
+                    buttonLabel.key = "";
+                    buttonLabel.text = global::STRINGS.UI.UISIDESCREENS.FABRICATORSIDESCREEN.RECIPE_FOREVER;
+                }
             }
 
             Transform itemIcon = transform.Find("Item/Icon");
@@ -710,11 +749,8 @@ namespace ONIHeart
             Hide("MinionPortrait");
             HideVanillaRecipeSections();
             Hide("SelectionSummaryIcons WIP");
-            // Recipe cycling and the "forever" queue controls are not used by the terminal details.
+            // Recipe previous/next cycling is not used by the terminal details.
             RemoveDeep("CycleRecipesRow");
-            Remove("InfiniteButton");
-            Remove("Controls/InfiniteButton");
-            Remove("Controls/Queue/Box/Infinite");
             Hide("ResearchRequired");
             Hide("UndiscoveredMaterials");
 
@@ -905,6 +941,86 @@ namespace ONIHeart
             thermostatToggle.gameObject.SetActive(false);
             thermostatToggleLabel.gameObject.SetActive(false);
             sliderRow.SetActive(false);
+        }
+
+        private bool CanUseContinuous =>
+            processor != null && element.IsValid && !isRate && !isTemperature;
+
+        private bool IsContinuous =>
+            CanUseContinuous && processor.IsContinuous(operation, element);
+
+        private void OnContinuousButtonClicked()
+        {
+            if (!CanUseContinuous)
+            {
+                return;
+            }
+
+            bool continuous = processor.IsContinuous(operation, element);
+            processor.SetContinuous(operation, element, !continuous);
+            Refresh();
+        }
+
+        /// <summary>
+        /// Syncs the vanilla Forever button's infinity icon and the amount controls with continuous mode.
+        /// Continuous mode has no quantity: the amount box is cleared and locked, and the +/- buttons hide.
+        /// </summary>
+        private void RefreshContinuousState()
+        {
+            bool showContinuous = CanUseContinuous;
+            bool continuous = showContinuous && processor.IsContinuous(operation, element);
+
+            if (continuousButton != null)
+            {
+                continuousButton.gameObject.SetActive(showContinuous);
+            }
+
+            if (continuousIcon != null)
+            {
+                continuousIcon.SetActive(continuous);
+            }
+
+            if (!showContinuous || amountInput == null)
+            {
+                return;
+            }
+
+            if (amountInput.field != null)
+            {
+                amountInput.field.interactable = !continuous;
+            }
+
+            if (continuous)
+            {
+                amountInput.SetDisplayValue("");
+                if (decrement != null)
+                {
+                    decrement.gameObject.SetActive(false);
+                }
+
+                if (increment != null)
+                {
+                    increment.gameObject.SetActive(false);
+                }
+            }
+            else if (!useSlider)
+            {
+                if (decrement != null)
+                {
+                    decrement.gameObject.SetActive(true);
+                }
+
+                if (increment != null)
+                {
+                    increment.gameObject.SetActive(true);
+                }
+
+                if (amountInput.field != null && !amountInput.field.isFocused &&
+                    !Mathf.Approximately(GetValue(), amountInput.currentValue))
+                {
+                    amountInput.SetAmount(GetValue());
+                }
+            }
         }
 
         /// <summary>
@@ -1456,7 +1572,11 @@ namespace ONIHeart
                 string stock = GameUtil.GetFormattedMass(processor.GetStoredMass(element));
                 descriptionLabel.text = recipeName + "\n" +
                     string.Format(STRINGS.UI.ONIHEART.STOCK_AMOUNT, stock) + "\n" +
-                    (isRate ? STRINGS.UI.ONIHEART.DECOMPOSE_RATE_TOOLTIP : STRINGS.UI.ONIHEART.CONVERSION_AMOUNT_TOOLTIP);
+                    (IsContinuous
+                        ? STRINGS.UI.ONIHEART.CONTINUOUS_AMOUNT_TOOLTIP
+                        : (isRate
+                            ? STRINGS.UI.ONIHEART.DECOMPOSE_RATE_TOOLTIP
+                            : STRINGS.UI.ONIHEART.CONVERSION_AMOUNT_TOOLTIP));
             }
 
             RefreshCustomControls();
@@ -1470,6 +1590,8 @@ namespace ONIHeart
                 amountInput.SetAmount(GetValue());
                 amountInput.field.characterLimit = 10;
             }
+
+            RefreshContinuousState();
         }
 
         private void RefreshThermostat()
@@ -1589,6 +1711,9 @@ namespace ONIHeart
                 amountInput.gameObject.SetActive(!useSlider);
             }
 
+            // Conversion recipes can use the vanilla Forever button; rate/temperature modes never do.
+            RefreshContinuousState();
+
             if (!useSlider)
             {
                 return;
@@ -1687,6 +1812,11 @@ namespace ONIHeart
             }
 
             if (processor == null)
+            {
+                return;
+            }
+
+            if (IsContinuous)
             {
                 return;
             }

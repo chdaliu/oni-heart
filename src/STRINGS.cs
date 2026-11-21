@@ -225,7 +225,7 @@ namespace ONIHeart
                 public static LocString THERMOSTAT_TOGGLE_STATUS = "恒温控制：{0}";
                 public static LocString THERMOSTAT_NOT_SELECTED = "未选择";
                 public static LocString THERMOSTAT_NOT_ENABLED = "未启用";
-                public static LocString THERMOSTAT_NO_ELEMENTS = "没有可控制的液体/气体元素";
+                public static LocString THERMOSTAT_NO_ELEMENTS = "暂无可温控的液体/气体元素（材料出现后会自动解锁）";
                 public static LocString THERMOSTAT_ELEMENT_ROW_TOOLTIP = "点击打开 {0} 的温控详情，可单独设置目标温度并开启恒温。";
                 public static LocString THERMOSTAT_ELEMENT_STATUS = "恒温元素：{0}";
                 public static LocString THERMOSTAT_ELEMENT_TARGET = "{0}（{1}，{2}）";
@@ -248,6 +248,7 @@ namespace ONIHeart
                 public static LocString THERMOSTAT_SLIDER_VALUE = "目标温度：{0}";
                 public static LocString DECOMPOSE_RATE_VALUE = "速率：{0} kg/s";
                 public static LocString CONVERSION_AMOUNT_VALUE = "目标数量：{0} kg";
+                public static LocString CONTINUOUS_STATUS = "∞";
                 public static LocString STOCK_AMOUNT = "当前库存：{0}";
                 public static LocString CONNECTED_DEVICES = "已连接：{0} 个终端，{1} 个接口，{2} 个装卸建筑";
                 public static LocString CONNECTED_DEVICES_TOOLTIP =
@@ -310,9 +311,10 @@ namespace ONIHeart
                 public static LocString RECIPE_CONVERSION = "{0} → {1}";
                 public static LocString NO_RECIPES = "暂无可处理的材料（配方会随材料出现而解锁）";
                 public static LocString RECIPE_DETAIL_TITLE = "配方详情";
-                public static LocString RECIPE_ROW_TOOLTIP = "点击打开配方详情，调整数量/速率";
+                public static LocString RECIPE_ROW_TOOLTIP = "点击打开配方详情，调整数量/速率或开启持续";
                 public static LocString DECOMPOSE_RATE_TOOLTIP = "在此输入或调整分解速率（kg/s）；0 表示不工作";
                 public static LocString CONVERSION_AMOUNT_TOOLTIP = "在此输入或调整要生成的数量（kg）；0 表示不工作";
+                public static LocString CONTINUOUS_AMOUNT_TOOLTIP = "持续模式：不需要输入数量，只要有对应材料就会一直转化；关闭“持续”后数量归零";
                 public static LocString DECOMPOSE_STATUS = "分解：{0} kg/s";
                 public static LocString CONVERSION_STATUS = "{0}：{1} 个配方进行中";
                 public static LocString MASS_STORED = "储存物质：{0}";

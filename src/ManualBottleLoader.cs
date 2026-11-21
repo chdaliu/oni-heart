@@ -452,17 +452,26 @@ namespace ONIHeart
             }
         }
 
-        public override List<Descriptor> GetDescriptors(GameObject go)
+        public override void CollectDescriptors(GameObject go, List<Descriptor> descriptors)
         {
-            return new List<Descriptor>
+            if (descriptors == null)
             {
-                new Descriptor(
-                    string.Format(STRINGS.UI.ONIHEART.PORT_TARGET, link != null ? link.HeartName : STRINGS.UI.ONIHEART.NO_TARGET),
-                    STRINGS.UI.ONIHEART.TARGET_TOOLTIP),
-                new Descriptor(
-                    string.Format(STRINGS.UI.ONIHEART.MANUAL_OUTPUT_STATUS, SelectedElementName),
-                    STRINGS.UI.ONIHEART.MANUAL_OUTPUT_TOOLTIP)
-            };
+                return;
+            }
+
+            descriptors.Add(new Descriptor(
+                string.Format(STRINGS.UI.ONIHEART.PORT_TARGET, link != null ? link.HeartName : STRINGS.UI.ONIHEART.NO_TARGET),
+                STRINGS.UI.ONIHEART.TARGET_TOOLTIP));
+            descriptors.Add(new Descriptor(
+                string.Format(STRINGS.UI.ONIHEART.MANUAL_OUTPUT_STATUS, SelectedElementName),
+                STRINGS.UI.ONIHEART.MANUAL_OUTPUT_TOOLTIP));
+        }
+
+        public List<Descriptor> GetDescriptors(GameObject go)
+        {
+            List<Descriptor> descriptors = new List<Descriptor>();
+            CollectDescriptors(go, descriptors);
+            return descriptors;
         }
 
         public string SelectedElementName =>
@@ -619,6 +628,14 @@ namespace ONIHeart
 
             lastHeartWorldId = heartWorldId;
             lastHeartCell = heartCell;
+        }
+
+        public void CollectDescriptors(GameObject go, List<Descriptor> descriptors)
+        {
+            if (descriptors != null)
+            {
+                descriptors.AddRange(GetDescriptors(go));
+            }
         }
 
         public List<Descriptor> GetDescriptors(GameObject go)
